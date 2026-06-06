@@ -8,7 +8,8 @@ window.addEventListener('resize', fitCanvasToWindow); fitCanvasToWindow();
 const MAP_SIZE = 2000; const GRID_SIZE = 40;
 let myId = null; let localGrid = []; let localMapStyle = 'desert_outpost';
 let serverGameState = { players: {}, bullets: [], decoys: [], fields: [], scores: { red: 0, blue: 0 }, state: 'lobby', matchTimer: 120, mode: 'TDM' };
-let camera = { x: 1000, y: 1000 }; let inputState = { w: false, a: false, s: false, d: false, angle: 0 };
+let camera = { x: 1000, y: 1000 }; 
+let inputState = { w: false, a: false, s: false, d: false, angle: 0 };
 let radarPulses = [];
 
 // Client Prediction Core Engine Position Variables
@@ -127,6 +128,7 @@ window.assignHardwareProfile = function(profile) {
     if (profile === 'pc') {
         container.innerHTML = `
             <div class="category-header" style="color: #38bdf8; border-color: #38bdf8;">CUSTOMIZE KEYBOARD INPUT MAPS</div>
+            <p style="font-size:11px; color:#94a3b8; margin: 0 0 10px 4px; font-family:sans-serif;">* Note: Arrow keys are also automatically enabled alongside your custom movement keys.</p>
             <div class="controls-mapping-window">
                 <div class="bind-row"><span class="bind-label">Move Forward</span><button class="bind-input-btn" id="bk-up" onclick="primeInputCapture('up')">${keyboardBinds.up.toUpperCase()}</button></div>
                 <div class="bind-row"><span class="bind-label">Move Left</span><button class="bind-input-btn" id="bk-left" onclick="primeInputCapture('left')">${keyboardBinds.left.toUpperCase()}</button></div>
@@ -182,10 +184,12 @@ window.addEventListener('keydown', (e) => {
 
     if (selectedDeviceProfile === 'pc') {
         let key = e.key.toLowerCase();
-        if (key === keyboardBinds.up) inputState.w = true;
-        if (key === keyboardBinds.left) inputState.a = true;
-        if (key === keyboardBinds.down) inputState.s = true;
-        if (key === keyboardBinds.right) inputState.d = true;
+        
+        // Custom Binds OR Default Arrow Keys
+        if (key === keyboardBinds.up || e.key === 'ArrowUp') inputState.w = true;
+        if (key === keyboardBinds.left || e.key === 'ArrowLeft') inputState.a = true;
+        if (key === keyboardBinds.down || e.key === 'ArrowDown') inputState.s = true;
+        if (key === keyboardBinds.right || e.key === 'ArrowRight') inputState.d = true;
 
         if (key === keyboardBinds.reload) socket.emit('triggerReload');
         if (key === keyboardBinds.shoot) socket.emit('shootWeapon');
@@ -201,10 +205,10 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => {
     if (selectedDeviceProfile === 'pc') {
         let key = e.key.toLowerCase();
-        if (key === keyboardBinds.up) inputState.w = false;
-        if (key === keyboardBinds.left) inputState.a = false;
-        if (key === keyboardBinds.down) inputState.s = false;
-        if (key === keyboardBinds.right) inputState.d = false;
+        if (key === keyboardBinds.up || e.key === 'ArrowUp') inputState.w = false;
+        if (key === keyboardBinds.left || e.key === 'ArrowLeft') inputState.a = false;
+        if (key === keyboardBinds.down || e.key === 'ArrowDown') inputState.s = false;
+        if (key === keyboardBinds.right || e.key === 'ArrowRight') inputState.d = false;
     }
 });
 
@@ -451,7 +455,7 @@ socket.on('serverTickUpdate', (data) => {
     }
 });
 
-// Main locked frame rate client prediction ticker loop running at 60Hz
+// Main client prediction reconciliation engine running at 60Hz
 setInterval(() => { 
     if (serverGameState.state === 'playing') {
         if (selectedDeviceProfile === 'console') {
@@ -468,7 +472,13 @@ setInterval(() => {
 
             if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
 
+            // Dynamic Weapon Self-Slow calculation prevents local position snapping desyncs
             let currentMoveSpeed = 4.2; 
+            if (me.loadout && me.loadout[me.activeWeaponIndex] === 'chaingun') {
+                currentMoveSpeed = 2.5; 
+            }
+            if (Date.now() < me.stimActiveUntil) currentMoveSpeed += 2.0;
+
             let nextX = predictedPos.x + (dx * currentMoveSpeed);
             let nextY = predictedPos.y + (dy * currentMoveSpeed);
 
@@ -476,13 +486,13 @@ setInterval(() => {
             if (!checkClientWallCollision(predictedPos.x, nextY, 16)) predictedPos.y = nextY;
         }
 
-        // Apply clean reconciliation vectors
+        // Fixed reconciliation algorithm preventing micro-stutters
         let serverDist = Math.hypot(predictedPos.x - serverVerifiedPos.x, predictedPos.y - serverVerifiedPos.y);
-        if (serverDist > 100) {
+        if (serverDist > 64) {
             predictedPos.x = serverVerifiedPos.x; predictedPos.y = serverVerifiedPos.y;
-        } else if (serverDist > 0.1) {
-            predictedPos.x += (serverVerifiedPos.x - predictedPos.x) * 0.12;
-            predictedPos.y += (serverVerifiedPos.y - predictedPos.y) * 0.12;
+        } else if (serverDist > 0.05) {
+            predictedPos.x += (serverVerifiedPos.x - predictedPos.x) * 0.22;
+            predictedPos.y += (serverVerifiedPos.y - predictedPos.y) * 0.22;
         }
     } 
 }, 1000 / 60);
@@ -571,13 +581,21 @@ function paintLoop() {
         ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x + oX, p.y + oY, p.radius, 0, Math.PI * 2); ctx.stroke();
     }
 
+    // Render Decoys (Neon Ring with Black Center)
     if (serverGameState.decoys) {
         serverGameState.decoys.forEach(dec => {
             ctx.save(); ctx.translate(dec.x + oX, dec.y + oY);
-            ctx.fillStyle = dec.team === 'red' ? '#ff007f' : '#00f0ff';
-            ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
+            
+            // Outer neon circle border
+            ctx.strokeStyle = dec.team === 'red' ? '#ff007f' : '#00f0ff';
+            ctx.lineWidth = 4;
+            ctx.fillStyle = '#000000'; // Black inside center cavity
+            ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); 
+            ctx.fill(); ctx.stroke();
+            
             ctx.rotate(dec.ownerId === myId ? inputState.angle : dec.angle);
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5); ctx.restore();
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5); 
+            ctx.restore();
         });
     }
 
@@ -586,6 +604,7 @@ function paintLoop() {
         ctx.arc(b.x + oX, b.y + oY, b.radius || 4, 0, Math.PI * 2); ctx.fill();
     });
 
+    // Render Characters (Neon Ring with Black Center)
     Object.values(serverGameState.players).forEach(p => {
         if (p.hp <= 0) return;
         if (p.id !== myId && now < p.cloakActiveUntil) return;
@@ -598,10 +617,17 @@ function paintLoop() {
             ctx.translate(p.x + oX, p.y + oY);
         }
 
-        ctx.fillStyle = p.team === 'red' ? '#ff007f' : '#00f0ff';
-        ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
+        // Outer neon circle border layout
+        ctx.strokeStyle = p.team === 'red' ? '#ff007f' : '#00f0ff';
+        ctx.lineWidth = 4;
+        ctx.fillStyle = '#000000'; // Black inside center cavity
+        ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); 
+        ctx.fill(); ctx.stroke();
+
+        // Directional weapon barrel indicator pointer line
         ctx.rotate(p.id === myId ? inputState.angle : p.angle);
-        ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5); ctx.restore();
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5); 
+        ctx.restore();
     });
 
     requestAnimationFrame(paintLoop);
