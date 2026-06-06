@@ -1,0 +1,226 @@
+@import url('https://fonts.googleapis.com/css2?family=Burbank+Big+Condensed:wght@700&family=Orbitron:wght@600;900&display=swap');
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #0b0e14;
+    font-family: 'Orbitron', sans-serif;
+}
+
+#gameCanvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* OVERLAYS & FORTNITE STYLED INTERFACES */
+.overlay {
+    position: fixed;
+    top:0; left:0; width: 100vw; height: 100vh;
+    background: rgba(8, 12, 21, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.hidden { display: none !important; }
+
+.menu-box {
+    background: linear-gradient(135deg, #151d2a 0%, #0d131f 100%);
+    border: 4px solid #00f0ff;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+    text-align: center;
+    width: 420px;
+}
+
+.logo-title {
+    font-family: 'Burbank Big Condensed', 'Orbitron', sans-serif;
+    font-size: 3.5rem;
+    color: #fff;
+    text-shadow: 0 4px 0 #000;
+    font-weight: 900;
+    letter-spacing: 2px;
+    margin-bottom: 25px;
+}
+
+.accent { color: #ffff00; text-shadow: 0 4px 0 #000; }
+
+input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    background-color: #1c2635;
+    border: 2px solid #3b4e68;
+    color: #fff;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 1rem;
+    text-align: center;
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: #ffff00;
+}
+
+.skin-selector {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    margin-bottom: 25px;
+    font-size: 0.9rem;
+}
+
+input[type="color"] {
+    border: none;
+    width: 50px;
+    height: 35px;
+    border-radius: 6px;
+    cursor: pointer;
+    background: transparent;
+}
+
+.fortnite-btn {
+    background: linear-gradient(180deg, #ffd700 0%, #ff8c00 100%);
+    border: 2px solid #000;
+    color: #000;
+    font-family: 'Burbank Big Condensed', Arial, sans-serif;
+    font-size: 1.8rem;
+    font-weight: bold;
+    padding: 12px 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #b26200;
+    transition: transform 0.1s ease;
+    width: 100%;
+}
+
+.fortnite-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 #b26200;
+}
+
+#queue-status {
+    color: #ffd700;
+    margin-top: 15px;
+    font-size: 0.9rem;
+}
+
+.countdown-spinner {
+    font-size: 5rem;
+    color: #ffff00;
+    margin: 20px 0;
+    font-weight: 900;
+}
+
+/* HUD LAYER */
+.top-left-panel { position: absolute; top: 20px; left: 20px; z-index: 10; }
+.mini-map-wrapper {
+    border: 3px solid rgba(0, 240, 255, 0.5);
+    background: rgba(10, 15, 26, 0.7);
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.top-right-killfeed {
+    position: absolute; top: 20px; right: 20px;
+    width: 250px; text-align: right; z-index: 10;
+    pointer-events: none;
+}
+
+.killfeed-item {
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    font-size: 0.8rem;
+    border-right: 4px solid #ff4500;
+}
+
+.bottom-center-hud {
+    position: absolute; bottom: 20px; left: 50%;
+    transform: translateX(-50%); z-index: 10;
+    text-align: center;
+}
+
+.hp-bar-outer {
+    width: 350px; height: 26px;
+    background: rgba(0,0,0,0.5);
+    border: 2px solid #fff;
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+#hp-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff66 0%, #00b344 100%);
+    transition: width 0.15s ease-out;
+}
+
+#hp-text {
+    position: absolute; top:50%; left:50%;
+    transform: translate(-50%, -50%);
+    color: #fff; font-size: 0.85rem; font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+}
+
+.hotbar-slots { display: flex; gap: 10px; justify-content: center; }
+.slot {
+    background: rgba(21, 29, 42, 0.8);
+    border: 2px solid #3b4e68;
+    color: #8fa0b5;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+.slot.active {
+    border-color: #ffff00;
+    color: #fff;
+    background: rgba(255, 215, 0, 0.15);
+    box-shadow: 0 0 10px rgba(255,215,0,0.3);
+}
+.slot span { color: #ffff00; margin-right: 4px;}
+
+/* CHAT AREA */
+.social-side-panel {
+    position: absolute; bottom: 20px; left: 20px;
+    width: 280px; z-index: 10;
+}
+#chat-output-area {
+    height: 120px; overflow-y: auto;
+    background: rgba(0,0,0,0.4);
+    border-radius: 6px; padding: 6px;
+    margin-bottom: 6px; display: flex; flex-direction: column;
+    justify-content: flex-end; pointer-events: none;
+}
+.chat-line { font-size: 0.75rem; color: #fff; margin-bottom: 2px; }
+.chat-line span { color: #00f0ff; font-weight: bold; }
+#chat-input-field { margin-bottom: 6px; font-size: 0.8rem; text-align: left; padding: 8px;}
+.emote-bar { display: flex; gap: 5px; }
+.emote-bar button {
+    flex: 1; padding: 6px; font-size: 0.75rem; cursor: pointer;
+    background: #1c2635; border: 1px solid #3b4e68; color:#fff; border-radius:4px;
+}
+.emote-bar button:hover { background: #3b4e68; }
+
+.victory-title {
+    font-family: 'Burbank Big Condensed', sans-serif;
+    color: #ffff00; font-size: 4rem; text-shadow: 0 4px 0 #000;
+}
+#winner-banner { color: #fff; font-size: 1.2rem; margin-top: 10px; }
