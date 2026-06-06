@@ -11,6 +11,10 @@ let serverGameState = { players: {}, bullets: [], decoys: [], fields: [], scores
 let camera = { x: 1000, y: 1000 }; let inputState = { w: false, a: false, s: false, d: false, angle: 0 };
 let radarPulses = [];
 
+// Client Prediction Core Variables
+let predictedPos = { x: 1000, y: 1000 };
+let hasSetInitialPos = false;
+
 const AVAILABLE_WEAPONS_LIST = [
     { id: 'railgun', title: 'Railgun', desc: 'Instant high velocity armor piercing straight beam line.', color: '#00ffff' },
     { id: 'heavy_revolver', title: 'Heavy Revolver', desc: 'Immense kinetic impact damage accompanied by high weapon recoil thrust.', color: '#f97316' },
@@ -43,6 +47,25 @@ const AVAILABLE_ABILITIES_LIST = [
     { id: 'heal', title: 'Repair Matrix', desc: 'Instantly restore 40 framework integrity.' },
     { id: 'cloak', title: 'Stealth Cloak', desc: 'Conceal player model framework completely.' }
 ];
+
+function checkClientWallCollision(x, y, radius) {
+    if (!localGrid) return false;
+    const blocks = MAP_SIZE / GRID_SIZE;
+    let startX = Math.max(0, Math.floor((x - radius) / GRID_SIZE));
+    let endX = Math.min(blocks - 1, Math.floor((x + radius) / GRID_SIZE));
+    let startY = Math.max(0, Math.floor((y - radius) / GRID_SIZE));
+    let endY = Math.min(blocks - 1, Math.floor((y + radius) / GRID_SIZE));
+
+    for (let gx = startX; gx <= endX; gx++) {
+        for (let gy = startY; gy <= endY; gy++) {
+            if (localGrid[gx] && localGrid[gx][gy] === 1) {
+                let wX = gx * GRID_SIZE; let wY = gy * GRID_SIZE;
+                if (x + radius > wX && x - radius < wX + GRID_SIZE && y + radius > wY && y - radius < wY + GRID_SIZE) return true;
+            }
+        }
+    }
+    return false;
+}
 
 function compileGridHTML(suffix) {
     return `
@@ -126,7 +149,8 @@ window.addEventListener('mousemove', (e) => { inputState.angle = Math.atan2(e.cl
 socket.on('connect', () => { myId = socket.id; });
 socket.on('roomJoined', (data) => { localGrid = data.map; localMapStyle = data.mapStyle; });
 socket.on('loadoutActionAck', () => { document.getElementById('midround-terminal').classList.add('hidden'); });
-socket.on('matchStarted', (data) => { localGrid = data.map; localMapStyle = data.mapStyle; document.getElementById('midround-terminal').classList.add('hidden'); });
+socket.on('playerRespawned', (data) => { if (data.id === myId) { predictedPos.x = data.x; predictedPos.y = data.y; } });
+socket.on('matchStarted', (data) => { localGrid = data.map; localMapStyle = data.mapStyle; document.getElementById('midround-terminal').classList.add('hidden'); hasSetInitialPos = false; });
 socket.on('voteRegisteredUpdate', (votes) => {
     document.getElementById('count-desert_outpost').innerText = `VOTES: ${votes.desert_outpost}`;
     document.getElementById('count-urban_blocks').innerText = `VOTES: ${votes.urban_blocks}`;
@@ -171,10 +195,41 @@ socket.on('serverTickUpdate', (data) => {
         let nNode = document.getElementById('cd-n-status');
         if (nDiff > 0) { nNode.innerText = `RECHARGING (${nDiff}S)`; nNode.className = "cd-wait"; }
         else { nNode.innerText = `READY // [${me.abilities[1].toUpperCase()}]`; nNode.className = "cd-ready"; }
+
+        if (!hasSetInitialPos) {
+            predictedPos.x = me.x; predictedPos.y = me.y; hasSetInitialPos = true;
+        }
+
+        // Server Re-reconciliation (Elastic Elastic Catchup Loop)
+        let serverDist = Math.hypot(predictedPos.x - me.x, predictedPos.y - me.y);
+        if (serverDist > 65) {
+            predictedPos.x = me.x; predictedPos.y = me.y;
+        } else if (serverDist > 0.1) {
+            predictedPos.x += (me.x - predictedPos.x) * 0.15;
+            predictedPos.y += (me.y - predictedPos.y) * 0.15;
+        }
     }
 });
 
-setInterval(() => { if (serverGameState.state === 'playing') socket.emit('playerActionInput', inputState); }, 1000 / 60);
+// Client-Side Engine Input Thread Calculation
+setInterval(() => { 
+    if (serverGameState.state === 'playing') {
+        socket.emit('playerActionInput', inputState); 
+
+        // Run local fluid prediction to map engine steps instantly ahead of cloud feedback
+        let me = serverGameState.players[myId];
+        if (me && me.hp > 0 && !me.controllingDecoyId) {
+            let nextX = predictedPos.x; let nextY = predictedPos.y;
+            let currentMoveSpeed = 4.2; 
+
+            if (inputState.w) nextY -= currentMoveSpeed; if (inputState.s) nextY += currentMoveSpeed;
+            if (inputState.a) nextX -= currentMoveSpeed; if (inputState.d) nextX += currentMoveSpeed;
+
+            if (!checkClientWallCollision(nextX, predictedPos.y, 16)) predictedPos.x = nextX;
+            if (!checkClientWallCollision(predictedPos.x, nextY, 16)) predictedPos.y = nextY;
+        }
+    } 
+}, 1000 / 60);
 
 let environmentDecorations = [];
 for(let i=0; i<45; i++) {
@@ -186,13 +241,14 @@ function paintLoop() {
     if (!myId || !serverGameState.players[myId]) { requestAnimationFrame(paintLoop); return; }
 
     let target = serverGameState.players[myId];
-    let camX = target.x; let camY = target.y;
+    let camX = predictedPos.x; let camY = predictedPos.y;
+    
     if (target.controllingDecoyId) {
         let controlledClone = serverGameState.decoys.find(d => d.id === target.controllingDecoyId);
         if (controlledClone) { camX = controlledClone.x; camY = controlledClone.y; }
     }
 
-    camera.x += (camX - camera.x) * 0.08; camera.y += (camY - camera.y) * 0.08;
+    camera.x += (camX - camera.x) * 0.1; camera.y += (camY - camera.y) * 0.1;
     let oX = canvas.width / 2 - camera.x; let oY = canvas.height / 2 - camera.y;
     let now = Date.now();
 
@@ -290,8 +346,11 @@ function paintLoop() {
             if (dec.ownerId === myId) {
                 ctx.strokeStyle = '#00ff66'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
                 ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.stroke();
+                ctx.rotate(inputState.angle);
+            } else {
+                ctx.rotate(dec.angle);
             }
-            ctx.rotate(dec.angle); ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5); ctx.restore();
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5); ctx.restore();
         });
     }
 
@@ -309,7 +368,15 @@ function paintLoop() {
         if (p.hp <= 0) return;
         if (p.id !== myId && now < p.cloakActiveUntil) return;
 
-        ctx.save(); ctx.translate(p.x + oX, p.y + oY);
+        ctx.save(); 
+        
+        // Instant Position Blending Strategy Injection
+        if (p.id === myId) {
+            ctx.translate(predictedPos.x + oX, predictedPos.y + oY);
+        } else {
+            ctx.translate(p.x + oX, p.y + oY);
+        }
+
         if (p.id === myId && now < p.cloakActiveUntil) ctx.globalAlpha = 0.35;
 
         ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
@@ -324,7 +391,15 @@ function paintLoop() {
 
         if (now < p.shieldActiveUntil) { ctx.strokeStyle = '#00ff66'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, 0, 23, 0, Math.PI * 2); ctx.stroke(); }
         if (now < p.overdriveActiveUntil) { ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 1.5; ctx.strokeRect(-19, -19, 38, 38); }
-        ctx.rotate(p.angle); ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5); ctx.restore();
+        
+        // Zero Latency Aim Rotation Fix
+        if (p.id === myId) {
+            ctx.rotate(inputState.angle);
+        } else {
+            ctx.rotate(p.angle);
+        }
+        
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5); ctx.restore();
     });
 
     requestAnimationFrame(paintLoop);

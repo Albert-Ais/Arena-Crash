@@ -547,6 +547,10 @@ io.on('connection', (socket) => {
     socket.on('playerActionInput', (data) => {
         let room = rooms[socket.roomId]; if (!room || room.state !== "playing") return;
         let p = room.players[socket.id]; if (!p || p.hp <= 0) return;
+        
+        let speedLimit = (WEAPONS[p.loadout[p.activeWeaponIndex]]?.selfSlow) ? 4.5 : 8.5;
+        if (Date.now() < p.stimActiveUntil) speedLimit += 4.0;
+
         if (data.w) p.vy -= 1.2; if (data.s) p.vy += 1.2;
         if (data.a) p.vx -= 1.2; if (data.d) p.vx += 1.2;
         p.angle = data.angle;
