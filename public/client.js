@@ -185,7 +185,7 @@ window.addEventListener('keydown', (e) => {
     if (selectedDeviceProfile === 'pc') {
         let key = e.key.toLowerCase();
         
-        // Custom Binds OR Default Arrow Keys
+        // Custom Config Map OR Static Standard Hardware Arrow Keys
         if (key === keyboardBinds.up || e.key === 'ArrowUp') inputState.w = true;
         if (key === keyboardBinds.left || e.key === 'ArrowLeft') inputState.a = true;
         if (key === keyboardBinds.down || e.key === 'ArrowDown') inputState.s = true;
@@ -212,14 +212,13 @@ window.addEventListener('keyup', (e) => {
     }
 });
 
-// Canvas Aim Vectors for Desktop Devices
 window.addEventListener('mousemove', (e) => {
     if (selectedDeviceProfile === 'pc') {
         inputState.angle = Math.atan2(e.clientY - window.innerHeight / 2, e.clientX - window.innerWidth / 2);
     }
 });
 
-/* Virtual Joysticks Drivers for Mobile Touchscreens */
+/* Mobile Driver Joysticks */
 let activeJoysticksTracker = {
     left: { active: false, startX: 0, startY: 0, curX: 0, curY: 0 },
     right: { active: false, startX: 0, startY: 0, curX: 0, curY: 0 }
@@ -305,37 +304,26 @@ function scanConsoleGamepadInputs() {
     }
     if (!activePad) return;
 
-    // Left analog stick translation threshold values
     let lx = activePad.axes[0]; let ly = activePad.axes[1];
     inputState.a = lx < -0.25; inputState.d = lx > 0.25;
     inputState.w = ly < -0.25; inputState.s = ly > 0.25;
 
-    // Right analog stick controls rotation aiming vector coordinates
     let rx = activePad.axes[2]; let ry = activePad.axes[3];
-    if (Math.hypot(rx, ry) > 0.3) {
-        inputState.angle = Math.atan2(ry, rx);
-    }
+    if (Math.hypot(rx, ry) > 0.3) inputState.angle = Math.atan2(ry, rx);
 
-    // Button mapping loops
-    let fireButton = activePad.buttons[7]; // R2 / RT Trigger
-    if (fireButton && fireButton.pressed) {
-        if (!inputState.wasFirePressedLastFrame) {
-            socket.emit('shootWeapon'); inputState.wasFirePressedLastFrame = true;
-        }
+    if (activePad.buttons[7]?.pressed) {
+        if (!inputState.wasFirePressedLastFrame) { socket.emit('shootWeapon'); inputState.wasFirePressedLastFrame = true; }
     } else { inputState.wasFirePressedLastFrame = false; }
 
-    let reloadBtn = activePad.buttons[2]; // Square / X
-    if (reloadBtn && reloadBtn.pressed) {
-        if (!inputState.wasReloadPressedLastFrame) {
-            socket.emit('triggerReload'); inputState.wasReloadPressedLastFrame = true;
-        }
+    if (activePad.buttons[2]?.pressed) {
+        if (!inputState.wasReloadPressedLastFrame) { socket.emit('triggerReload'); inputState.wasReloadPressedLastFrame = true; }
     } else { inputState.wasReloadPressedLastFrame = false; }
 
-    if (activePad.buttons[4]?.pressed) { // L1
+    if (activePad.buttons[4]?.pressed) {
         if (!inputState.wasAb1Pressed) { socket.emit('useAbility', 0); inputState.wasAb1Pressed = true; }
     } else { inputState.wasAb1Pressed = false; }
 
-    if (activePad.buttons[5]?.pressed) { // R1
+    if (activePad.buttons[5]?.pressed) {
         if (!inputState.wasAb2Pressed) { socket.emit('useAbility', 1); inputState.wasAb2Pressed = true; }
     } else { inputState.wasAb2Pressed = false; }
 }
@@ -387,7 +375,6 @@ document.getElementById('dispatch-queue-btn').addEventListener('click', () => {
         document.getElementById('mobile-touch-interface').style.display = 'block';
         setupTouchInterfaceLoop();
     }
-
     socket.emit('joinQueue', { name: document.getElementById('player-name').value.trim() || "Spectre", sizePref: document.getElementById('size-pref').value, modePref: document.getElementById('mode-pref').value, loadout: payload.loadout, abilities: payload.abilities });
 });
 
@@ -455,19 +442,16 @@ socket.on('serverTickUpdate', (data) => {
     }
 });
 
-// High Precision Native Frame-Rate Delta Movement Prediction Core Engine
+// High Precision Native Frame-Rate Delta Movement Prediction Engine
 let lastPhysicsLoopTimestamp = performance.now();
 
 function executeHighPrecisionClientPrediction(currentFrameTime) {
     let dt = (currentFrameTime - lastPhysicsLoopTimestamp) / 1000;
     lastPhysicsLoopTimestamp = currentFrameTime;
-
-    if (dt > 0.1) dt = 0.1; // Protect simulation against background window context freezes
+    if (dt > 0.1) dt = 0.1;
 
     if (serverGameState.state === 'playing') {
-        if (selectedDeviceProfile === 'console') {
-            scanConsoleGamepadInputs();
-        }
+        if (selectedDeviceProfile === 'console') scanConsoleGamepadInputs();
 
         socket.emit('playerActionInput', inputState); 
 
@@ -479,11 +463,9 @@ function executeHighPrecisionClientPrediction(currentFrameTime) {
 
             if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
 
-            // Base client movement velocity scale translated safely across real-time chunks
+            // Uniform Speed constants scaled completely by time slice loops
             let currentMoveSpeed = 252; 
-            if (me.loadout && me.loadout[me.activeWeaponIndex] === 'chaingun') {
-                currentMoveSpeed = 150; 
-            }
+            if (me.loadout && me.loadout[me.activeWeaponIndex] === 'chaingun') currentMoveSpeed = 150; 
             if (Date.now() < me.stimActiveUntil) currentMoveSpeed += 120;
 
             let nextX = predictedPos.x + (dx * currentMoveSpeed * dt);
@@ -493,7 +475,7 @@ function executeHighPrecisionClientPrediction(currentFrameTime) {
             if (!checkClientWallCollision(predictedPos.x, nextY, 16)) predictedPos.y = nextY;
         }
 
-        // Linear interpolation balancing loop maps current layout directly to verified server tracking data
+        // Linear interpolation reconciliation algorithm preventing rubberbanding corrections
         let serverDist = Math.hypot(predictedPos.x - serverVerifiedPos.x, predictedPos.y - serverVerifiedPos.y);
         if (serverDist > 48) {
             predictedPos.x = serverVerifiedPos.x; predictedPos.y = serverVerifiedPos.y;
@@ -532,9 +514,7 @@ function paintLoop() {
         ctx.fillStyle = '#cc9966'; ctx.fillRect(0, 0, canvas.width, canvas.height); 
         ctx.fillStyle = '#dfb17b'; ctx.fillRect(oX, oY, MAP_SIZE, MAP_SIZE); 
         ctx.fillStyle = '#c5935c';
-        environmentDecorations.forEach(d => {
-            ctx.beginPath(); ctx.arc(d.x + oX, d.y + oY, d.size, 0, Math.PI, true); ctx.fill();
-        });
+        environmentDecorations.forEach(d => { ctx.beginPath(); ctx.arc(d.x + oX, d.y + oY, d.size, 0, Math.PI, true); ctx.fill(); });
     } else {
         ctx.fillStyle = '#11121c'; ctx.fillRect(0, 0, canvas.width, canvas.height); 
         ctx.fillStyle = '#1e2030'; ctx.fillRect(oX, oY, MAP_SIZE, MAP_SIZE); 
@@ -565,9 +545,8 @@ function paintLoop() {
         for (let x = 0; x < localGrid.length; x++) {
             for (let y = 0; y < localGrid[x].length; y++) {
                 if (localGrid[x][y] === 1) {
-                    let wX = x * GRID_SIZE + oX; let wY = y * GRID_SIZE + oY;
                     ctx.fillStyle = localMapStyle === 'desert_outpost' ? '#735135' : '#090a14';
-                    ctx.fillRect(wX, wY, GRID_SIZE, GRID_SIZE);
+                    ctx.fillRect(x * GRID_SIZE + oX, y * GRID_SIZE + oY, GRID_SIZE, GRID_SIZE);
                 }
             }
         }
@@ -591,17 +570,14 @@ function paintLoop() {
         ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x + oX, p.y + oY, p.radius, 0, Math.PI * 2); ctx.stroke();
     }
 
-    // Render Decoys (Neon Ring with Black Center)
+    // Explicit Decoy Graphics Setup: Neon border, absolute black inner circle cavity
     if (serverGameState.decoys) {
         serverGameState.decoys.forEach(dec => {
             ctx.save(); ctx.translate(dec.x + oX, dec.y + oY);
-            
-            // Outer neon circle border
             ctx.strokeStyle = dec.team === 'red' ? '#ff007f' : '#00f0ff';
             ctx.lineWidth = 4;
-            ctx.fillStyle = '#000000'; // Black inside center cavity
-            ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); 
-            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#000000'; 
+            ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             
             ctx.rotate(dec.ownerId === myId ? inputState.angle : dec.angle);
             ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5); 
@@ -610,11 +586,10 @@ function paintLoop() {
     }
 
     serverGameState.bullets.forEach(b => {
-        ctx.fillStyle = b.color || '#fbbf24'; ctx.beginPath();
-        ctx.arc(b.x + oX, b.y + oY, b.radius || 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = b.color || '#fbbf24'; ctx.beginPath(); ctx.arc(b.x + oX, b.y + oY, b.radius || 4, 0, Math.PI * 2); ctx.fill();
     });
 
-    // Render Characters (Neon Ring with Black Center)
+    // Authoritative Player Graphics Setup: Neon border, absolute black inner circle cavity
     Object.values(serverGameState.players).forEach(p => {
         if (p.hp <= 0) return;
         if (p.id !== myId && now < p.cloakActiveUntil) return;
@@ -627,14 +602,11 @@ function paintLoop() {
             ctx.translate(p.x + oX, p.y + oY);
         }
 
-        // Outer neon circle border layout
         ctx.strokeStyle = p.team === 'red' ? '#ff007f' : '#00f0ff';
         ctx.lineWidth = 4;
-        ctx.fillStyle = '#000000'; // Black inside center cavity
-        ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); 
-        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#000000'; 
+        ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-        // Directional weapon barrel indicator pointer line
         ctx.rotate(p.id === myId ? inputState.angle : p.angle);
         ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5); 
         ctx.restore();

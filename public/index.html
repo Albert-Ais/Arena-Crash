@@ -3,136 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CyberStrike Tactical Arena</title>
+    <title>NEON APEX // ARENA FRAMEWORK</title>
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; background: #0b0b12; font-family: "Courier New", monospace; color: #f1f5f9; user-select: none; touch-action: none; }
-        #gameCanvas { display: block; width: 100vw; height: 100vh; }
-        .fullscreen-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(4, 4, 8, 0.97); display: flex; justify-content: center; align-items: flex-start; z-index: 100; overflow-y: auto; padding: 30px 20px; box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #090a14; color: #cbd5e1; }
+        
+        #gameCanvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        /* Terminal UI Screen Layouts */
+        .terminal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; align-items: center; justify-content: center; background: rgba(5, 6, 12, 0.85); backdrop-filter: blur(8px); }
+        .terminal-box { background: #0c0d19; border: 2px solid #00f0ff; box-shadow: 0 0 25px rgba(0, 240, 255, 0.25); width: 90%; max-width: 680px; max-height: 85vh; overflow-y: auto; padding: 24px; border-radius: 4px; position: relative; }
         .hidden { display: none !important; }
-        .config-window { background: #0d0e1a; border: 2px solid #00f0ff; width: 100%; max-width: 950px; padding: 24px; box-sizing: border-box; box-shadow: 0 0 30px rgba(0, 240, 255, 0.2); margin-bottom: 40px; }
-        h2, h3 { margin-top: 0; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 8px currentColor; }
+
+        /* Form Controls & Grids */
         .flex-col { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
         .flex-row { display: flex; gap: 12px; }
-        input[type="text"], select { background: #000; border: 1px solid #00f0ff; padding: 12px; color: #00f0ff; font-weight: bold; width: 100%; box-sizing: border-box; outline: none; }
+        input, select, button { background: #141629; border: 1px solid #334155; color: #fff; padding: 10px 14px; font-size: 14px; border-radius: 4px; outline: none; width: 100%; }
+        input:focus, select:focus { border-color: #00f0ff; box-shadow: 0 0 8px rgba(0,240,255,0.3); }
         
-        /* Device Selector Styling */
-        .device-selector-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
-        .device-btn { background: #121424; border: 1px solid #1a2035; padding: 14px; text-align: center; cursor: pointer; font-weight: bold; color: #94a3b8; text-transform: uppercase; transition: all 0.2s; }
-        .device-btn:hover { border-color: #00f0ff; color: #ffffff; }
-        .device-btn.active { background: rgba(0, 240, 255, 0.15); border: 2px solid #00f0ff; color: #00f0ff; box-shadow: 0 0 10px rgba(0, 240, 255, 0.3); }
-
-        /* Keybind Customizer Styling */
-        .controls-mapping-window { background: #07080f; border: 1px dashed #1a2035; padding: 14px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
-        .bind-row { display: flex; justify-content: space-between; align-items: center; background: #121424; padding: 8px; border: 1px solid #1d243d; }
-        .bind-label { font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase; }
-        .bind-input-btn { background: #000; border: 1px solid #38bdf8; color: #38bdf8; font-weight: bold; padding: 4px 8px; font-size: 11px; cursor: pointer; min-width: 70px; text-align: center; }
-        .bind-input-btn:focus { border-color: #00ff66; color: #00ff66; outline: none; }
-
-        .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; margin-bottom: 20px; text-align: left; background: rgba(0,0,0,0.5); border: 1px dashed #1a2035; padding: 12px; }
-        .card { background: #121424; border: 1px solid #1a2035; padding: 12px; cursor: pointer; transition: all 0.2s ease; }
-        .card:hover { border-color: #00f0ff; background: #171a30; }
-        .card input { margin-right: 8px; accent-color: #00f0ff; }
-        .card-title { font-weight: bold; font-size: 14px; margin-bottom: 4px; display: inline-block; }
-        .card-text { font-size: 11px; color: #94a3b8; line-height: 1.4; font-family: sans-serif; }
-        .category-header { font-size: 12px; text-transform: uppercase; color: #ff007f; font-weight: 800; letter-spacing: 2px; margin: 18px 0 8px 0; border-bottom: 1px solid #ff007f; padding-bottom: 4px; }
-        .category-header.ability-hdr { color: #00ff66; border-bottom-color: #00ff66; }
-        .submit-btn { width: 100%; padding: 16px; border: 1px solid #00f0ff; background: rgba(0,240,255,0.05); color: #00f0ff; font-size: 15px; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; }
-        .submit-btn:hover { background: #00f0ff; color: #000; box-shadow: 0 0 15px rgba(0,240,255,0.4); }
-        .btn-alt-split { display: flex; gap: 12px; margin-top: 10px; }
-        .btn-alt-split button { width: 50%; }
+        .category-header { font-weight: bold; font-size: 13px; letter-spacing: 1px; color: #00f0ff; border-bottom: 1px dashed #1e293b; padding-bottom: 6px; margin: 18px 0 10px 0; text-transform: uppercase; }
+        .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin-bottom: 14px; }
+        .card { background: #111322; border: 1px solid #1e293b; padding: 10px; border-radius: 4px; display: flex; flex-direction: column; gap: 4px; }
+        .card:hover { border-color: #475569; }
+        .card-title { font-weight: bold; font-size: 13px; }
+        .card-text { font-size: 11px; color: #64748b; line-height: 1.3; }
         
-        .vote-zone { display: flex; justify-content: space-around; gap: 20px; margin: 15px 0; }
-        .vote-card { flex: 1; border: 1px solid #334155; background: #1e293b; padding: 15px; text-align: center; cursor: pointer; transition: border 0.2s; }
-        .vote-card:hover { border-color: #00ff66; }
-        .vote-count { font-size: 18px; color: #00ff66; font-weight: bold; margin-top: 5px; }
+        /* Device Hardware Configuration Selectors */
+        .device-selector-container { display: flex; gap: 10px; margin-bottom: 14px; }
+        .device-btn { flex: 1; text-align: center; padding: 12px; background: #111322; border: 1px solid #1e293b; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; text-transform: uppercase; transition: all 0.15s ease; }
+        .device-btn.active { background: #00f0ff; color: #000; border-color: #00f0ff; box-shadow: 0 0 12px rgba(0,240,255,0.4); }
+        
+        /* Interactive Input Rebinding System */
+        .controls-mapping-window { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #090a14; padding: 12px; border-radius: 4px; border: 1px solid #1e293b; }
+        .bind-row { display: flex; align-items: center; justify-content: space-between; background: #141629; padding: 6px 10px; border-radius: 3px; }
+        .bind-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; }
+        .bind-input-btn { width: auto; min-width: 80px; padding: 4px 8px; font-size: 11px; font-weight: bold; background: #1e293b; border: 1px solid #475569; color: #00f0ff; cursor: pointer; text-align: center; }
+        .bind-input-btn:hover { background: #334155; }
 
-        /* Mobile Layout HUD Virtual Mechanics */
-        #mobile-touch-interface { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; display: none; }
-        .touch-joystick-box { position: absolute; bottom: 30px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255, 255, 255, 0.03); border: 2px dashed rgba(0, 240, 255, 0.2); pointer-events: auto; }
+        .submit-btn { background: #00f0ff; color: #000; font-weight: bold; border: none; cursor: pointer; letter-spacing: 1px; margin-top: 15px; padding: 14px; text-transform: uppercase; }
+        .submit-btn:hover { background: #38bdf8; box-shadow: 0 0 15px rgba(56,189,248,0.5); }
+        
+        /* Heads-Up Display overlays */
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; }
+        .hud-panel { background: rgba(12, 13, 25, 0.75); border: 1px solid #1e293b; padding: 12px 16px; border-radius: 4px; pointer-events: auto; backdrop-filter: blur(4px); }
+        .hud-top { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
+        #top-center-timer-box { font-size: 26px; font-weight: bold; color: #fff; text-shadow: 0 0 8px rgba(255,255,255,0.4); text-align: center; font-family: monospace; }
+        #scores-panel { font-size: 12px; color: #00f0ff; margin-top: 4px; font-weight: bold; letter-spacing: 1px; }
+        .hud-bottom { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; }
+        
+        .weapon-readout { display: flex; flex-direction: column; gap: 4px; text-align: left; }
+        #active-wep-line { font-size: 15px; font-weight: bold; color: #fbbf24; }
+        #ammo-line { font-size: 12px; color: #94a3b8; }
+        
+        .ability-cd-wrapper { display: flex; gap: 14px; }
+        .cd-node { display: flex; flex-direction: column; gap: 2px; text-align: right; }
+        .cd-lbl { font-size: 10px; color: #64748b; text-transform: uppercase; }
+        .cd-ready { color: #00ff66; font-weight: bold; font-size: 12px; }
+        .cd-wait { color: #ef4444; font-size: 12px; }
+
+        /* Map Vote Sub-Grid system */
+        .vote-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+        .vote-card { background: #141629; border: 1px solid #1e293b; border-radius: 4px; padding: 12px; text-align: center; cursor: pointer; }
+        .vote-card:hover { border-color: #00f0ff; }
+        .vote-count { font-size: 11px; font-weight: bold; color: #fbbf24; margin-top: 6px; }
+
+        /* On-Screen Mobile Virtual Controllers */
+        #mobile-touch-interface { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 6; pointer-events: none; display: none; }
+        .touch-joystick-zone { position: absolute; bottom: 30px; width: 110px; height: 110px; background: rgba(255,255,255,0.03); border: 2px solid rgba(255,255,255,0.12); border-radius: 50%; pointer-events: auto; }
         #left-movement-joystick { left: 40px; }
         #right-aiming-joystick { right: 40px; }
-        .joystick-thumb-node { position: absolute; top: 40px; left: 40px; width: 50px; height: 50px; border-radius: 50%; background: rgba(0, 240, 255, 0.25); border: 2px solid #00f0ff; box-shadow: 0 0 10px #00f0ff; transition: transform 0.05s linear; pointer-events: none; }
+        .joystick-thumb-node { width: 40px; height: 40px; background: rgba(0, 240, 255, 0.4); border: 2px solid #00f0ff; border-radius: 50%; position: absolute; top: 33px; left: 33px; transition: none; }
         
-        .mobile-action-bar { position: absolute; bottom: 180px; right: 30px; display: flex; flex-direction: column; gap: 12px; pointer-events: auto; }
-        .mobile-round-btn { width: 56px; height: 56px; border-radius: 50%; border: 1px solid #00ff66; background: rgba(0, 255, 102, 0.1); color: #00ff66; font-weight: bold; font-family: monospace; display: flex; justify-content: center; align-items: center; font-size: 11px; }
-        .mobile-round-btn:active { background: #00ff66; color: #000; }
-
-        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; box-sizing: border-box; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
-        .hud-panel { background: rgba(5, 6, 14, 0.9); border: 1px solid #00f0ff; padding: 14px; pointer-events: auto; }
-        #top-center-timer-box { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); text-align: center; font-size: 20px; font-weight: bold; color: #ff007f; text-shadow: 0 0 8px #ff007f; padding: 10px 24px; min-width: 180px; }
-        #scores-panel { font-size: 16px; font-weight: bold; color: #ffffff; border-color: #64748b; }
-        .hud-bottom-row { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; }
-        #cooldown-panel { width: 340px; font-size: 12px; border-color: #00ff66; }
-        .cd-line { display: flex; justify-content: space-between; margin-top: 4px; }
-        .cd-ready { color: #00ff66; text-shadow: 0 0 4px #00ff66; }
-        .cd-wait { color: #ff007f; }
+        .mobile-action-buttons-rack { position: absolute; bottom: 160px; right: 30px; display: flex; flex-direction: column; gap: 10px; pointer-events: auto; }
+        .m-act-btn { width: 54px; height: 54px; border-radius: 50%; background: rgba(12,13,25,0.85); border: 1px solid #475569; color: #fff; font-size: 11px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+        .m-act-btn:active { background: #00f0ff; color: #000; border-color: #00f0ff; }
     </style>
 </head>
 <body>
 
-    <div id="setup-terminal" class="fullscreen-overlay">
-        <div class="config-window" id="primary-registry-box"></div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="setup-terminal" class="terminal-overlay">
+        <div class="terminal-box" id="primary-registry-box">
+            </div>
     </div>
 
-    <div id="midround-terminal" class="fullscreen-overlay hidden">
-        <div class="config-window" style="max-width: 950px;">
-            <h3 id="round-banner" style="color: #ffb700; text-align: center; margin-bottom: 4px;">ROUND WRAPPED</h3>
-            <p style="text-align: center; color:#64748b; font-size:12px; margin-bottom:10px;">Cast your next map configuration deployment coordinates below.</p>
+    <div id="midround-terminal" class="terminal-overlay hidden">
+        <div class="terminal-box">
+            <h2 id="round-banner" style="color: #fbbf24; text-align: center; margin-bottom: 4px;">WAVE RECONFIGURATION CORE</h2>
+            <p style="text-align: center; color:#64748b; font-size:12px; margin-bottom:15px;">Modify your system loadout profile properties before operational frameworks re-engage.</p>
             
-            <div class="category-header" style="color:#00f0ff; border-color:#00f0ff;">TACTICAL MAP INTERMISSION SELECTION</div>
-            <div class="vote-zone">
+            <div id="midround-grid-injection-point">
+                </div>
+
+            <div class="category-header" style="color:#a855f7; border-color:#a855f7;">SUBMIT MATCH DESIGNATION VOTE</div>
+            <div class="vote-row">
                 <div class="vote-card" onclick="castVote('desert_outpost')">
-                    <div style="font-weight:bold; color:#cc9966;">DESERT OUTPOST BIOME</div>
+                    <div style="font-weight:bold; font-size:13px; color:#dfb17b;">Desert Outpost</div>
                     <div id="count-desert_outpost" class="vote-count">VOTES: 0</div>
                 </div>
                 <div class="vote-card" onclick="castVote('urban_blocks')">
-                    <div style="font-weight:bold; color:#ff007f;">NEON URBAN RUINS</div>
+                    <div style="font-weight:bold; font-size:13px; color:#38bdf8;">Urban Grid Blocks</div>
                     <div id="count-urban_blocks" class="vote-count">VOTES: 0</div>
                 </div>
             </div>
 
-            <div id="midround-inserter-box"></div>
-            <div class="btn-alt-split">
-                <button id="skip-loadout-btn" class="submit-btn" style="border-color: #64748b; color: #64748b;">SKIP (KEEP MATCH LOADOUT)</button>
-                <button id="change-loadout-btn" class="submit-btn" style="border-color: #00ff66; color: #00ff66;">CONFIRM AND LOADOUT CHANGES</button>
+            <div class="flex-row" style="margin-top: 20px;">
+                <button id="skip-loadout-btn" style="background:#1e293b; color:#cbd5e1; border:none; font-weight:bold; cursor:pointer;">MAINTAIN PROTOCOLS</button>
+                <button id="change-loadout-btn" style="background:#fbbf24; color:#000; font-weight:bold; border:none; cursor:pointer;">RECONFIGURE SYSTEM</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="hud" class="hidden">
+        <div class="hud-top">
+            <div class="hud-panel" style="width: 100%; text-align: center; max-width: 480px; margin: 0 auto;">
+                <div id="top-center-timer-box">02:00</div>
+                <div id="scores-panel">INITIALIZING ARENA STRATA...</div>
+            </div>
+        </div>
+        <div class="hud-bottom">
+            <div class="hud-panel weapon-readout">
+                <div id="active-wep-line">LOADOUT: SECURING ARSENAL...</div>
+                <div id="ammo-line">MAG CAPACITY: -- / --</div>
+            </div>
+            <div class="hud-panel ability-cd-wrapper">
+                <div class="cd-node">
+                    <span class="cd-lbl">Primary Matrix</span>
+                    <span id="cd-m-status" class="cd-ready">READY [M]</span>
+                </div>
+                <div class="cd-node">
+                    <span class="cd-lbl">Auxiliary Matrix</span>
+                    <span id="cd-n-status" class="cd-ready">READY [N]</span>
+                </div>
             </div>
         </div>
     </div>
 
     <div id="mobile-touch-interface">
-        <div class="touch-joystick-box" id="left-movement-joystick"><div class="joystick-thumb-node"></div></div>
-        <div class="touch-joystick-box" id="right-aiming-joystick"><div class="joystick-thumb-node"></div></div>
-        <div class="mobile-action-bar">
-            <button class="mobile-round-btn" style="border-color:#38bdf8; color:#38bdf8; background:rgba(56,189,248,0.1);" onclick="handleMobileAction('shoot')">FIRE</button>
-            <button class="mobile-round-btn" style="border-color:#fbbf24; color:#fbbf24; background:rgba(251,191,36,0.1);" onclick="handleMobileAction('reload')">RELOAD</button>
-            <button class="mobile-round-btn" onclick="handleMobileAction('ab1')">ABIL 1</button>
-            <button class="mobile-round-btn" onclick="handleMobileAction('ab2')">ABIL 2</button>
-            <button class="mobile-round-btn" style="border-color:#e2e8f0; color:#ffffff; background:rgba(255,255,255,0.05); width:80px; border-radius:4px;" onclick="handleMobileAction('swap')">CYCLE WEP</button>
-        </div>
-    </div>
-
-    <canvas id="gameCanvas"></canvas>
-
-    <div id="hud" class="hidden">
-        <div class="hud-panel" id="top-center-timer-box">02:00</div>
-        <div style="display: flex; justify-content: space-between; width: 100%;">
-            <div class="hud-panel" id="scores-panel">RED MATRIX: 00 | BLUE MATRIX: 00</div>
-        </div>
-        <div class="hud-bottom-row">
-            <div class="hud-panel" id="weapon-display" style="width: 320px; font-size: 13px; border-color: #38bdf8;">
-                <div id="active-wep-line" style="font-weight: bold; color: #38bdf8; margin-bottom: 4px;">WEAPON: SECURING...</div>
-                <div id="ammo-line" style="font-size: 18px; font-weight: bold; color: #fbbf24;">AMMO: --</div>
-                <div id="slots-line" style="color: #64748b; font-size: 11px; margin-top: 4px;">Toggle slots via your mapped hotkeys</div>
-            </div>
-            <div class="hud-panel" id="cooldown-panel">
-                <div style="font-weight: bold; border-bottom: 1px solid #00ff66; padding-bottom: 4px; margin-bottom: 6px; color: #ffffff;">TACTICAL COOLDOWN TRACKER</div>
-                <div class="cd-line"><span>ABILITY 1:</span><span id="cd-m-status" class="cd-ready">READY</span></div>
-                <div class="cd-line"><span>ABILITY 2:</span><span id="cd-n-status" class="cd-ready">READY</span></div>
-            </div>
+        <div class="touch-joystick-zone" id="left-movement-joystick"><div class="joystick-thumb-node"></div></div>
+        <div class="touch-joystick-zone" id="right-aiming-joystick"><div class="joystick-thumb-node"></div></div>
+        
+        <div class="mobile-action-buttons-rack">
+            <button class="m-act-btn" onclick="handleMobileAction('swap')">SWAP</button>
+            <button class="m-act-btn" onclick="handleMobileAction('reload')" style="color:#fbbf24;">RELD</button>
+            <button class="m-act-btn" onclick="handleMobileAction('ab1')">AB1</button>
+            <button class="m-act-btn" onclick="handleMobileAction('ab2')">AB2</button>
+            <button class="m-act-btn" onclick="handleMobileAction('shoot')" style="width:64px; height:64px; margin-top:6px; background:#ef4444; border-color:#f87171;">FIRE</button>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/client.js"></script>
+    <script>
+        // Make midround upgrade layout match structural requirements instantly
+        document.getElementById('midround-grid-injection-point').innerHTML = compileGridHTML('mid');
+    </script>
 </body>
 </html>
