@@ -455,8 +455,15 @@ socket.on('serverTickUpdate', (data) => {
     }
 });
 
-// Main client prediction reconciliation engine running at 60Hz
-setInterval(() => { 
+// High Precision Native Frame-Rate Delta Movement Prediction Core Engine
+let lastPhysicsLoopTimestamp = performance.now();
+
+function executeHighPrecisionClientPrediction(currentFrameTime) {
+    let dt = (currentFrameTime - lastPhysicsLoopTimestamp) / 1000;
+    lastPhysicsLoopTimestamp = currentFrameTime;
+
+    if (dt > 0.1) dt = 0.1; // Protect simulation against background window context freezes
+
     if (serverGameState.state === 'playing') {
         if (selectedDeviceProfile === 'console') {
             scanConsoleGamepadInputs();
@@ -472,30 +479,33 @@ setInterval(() => {
 
             if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
 
-            // Dynamic Weapon Self-Slow calculation prevents local position snapping desyncs
-            let currentMoveSpeed = 4.2; 
+            // Base client movement velocity scale translated safely across real-time chunks
+            let currentMoveSpeed = 252; 
             if (me.loadout && me.loadout[me.activeWeaponIndex] === 'chaingun') {
-                currentMoveSpeed = 2.5; 
+                currentMoveSpeed = 150; 
             }
-            if (Date.now() < me.stimActiveUntil) currentMoveSpeed += 2.0;
+            if (Date.now() < me.stimActiveUntil) currentMoveSpeed += 120;
 
-            let nextX = predictedPos.x + (dx * currentMoveSpeed);
-            let nextY = predictedPos.y + (dy * currentMoveSpeed);
+            let nextX = predictedPos.x + (dx * currentMoveSpeed * dt);
+            let nextY = predictedPos.y + (dy * currentMoveSpeed * dt);
 
             if (!checkClientWallCollision(nextX, predictedPos.y, 16)) predictedPos.x = nextX;
             if (!checkClientWallCollision(predictedPos.x, nextY, 16)) predictedPos.y = nextY;
         }
 
-        // Fixed reconciliation algorithm preventing micro-stutters
+        // Linear interpolation balancing loop maps current layout directly to verified server tracking data
         let serverDist = Math.hypot(predictedPos.x - serverVerifiedPos.x, predictedPos.y - serverVerifiedPos.y);
-        if (serverDist > 64) {
+        if (serverDist > 48) {
             predictedPos.x = serverVerifiedPos.x; predictedPos.y = serverVerifiedPos.y;
-        } else if (serverDist > 0.05) {
-            predictedPos.x += (serverVerifiedPos.x - predictedPos.x) * 0.22;
-            predictedPos.y += (serverVerifiedPos.y - predictedPos.y) * 0.22;
+        } else if (serverDist > 0.1) {
+            let smoothingAlpha = 1 - Math.exp(-18 * dt); 
+            predictedPos.x += (serverVerifiedPos.x - predictedPos.x) * smoothingAlpha;
+            predictedPos.y += (serverVerifiedPos.y - predictedPos.y) * smoothingAlpha;
         }
     } 
-}, 1000 / 60);
+    requestAnimationFrame(executeHighPrecisionClientPrediction);
+}
+requestAnimationFrame(executeHighPrecisionClientPrediction);
 
 let environmentDecorations = [];
 for(let i=0; i<45; i++) {
