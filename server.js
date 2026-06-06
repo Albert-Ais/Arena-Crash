@@ -311,14 +311,15 @@ setInterval(() => {
 
         Object.values(room.players).forEach(p => {
             if (p.hp <= 0) return;
-            p.vx *= 0.8; p.vy *= 0.8;
+
             let curWep = p.loadout[p.activeWeaponIndex] || 'railgun';
             let profile = WEAPONS[curWep] || WEAPONS.railgun;
-            let speedLimit = profile.selfSlow ? 4.5 : 8.5;
-            if (now < p.stimActiveUntil) speedLimit += 4.0;
+            let speedLimit = profile.selfSlow ? 2.5 : 4.2;
+            if (now < p.stimActiveUntil) speedLimit += 2.0;
 
-            p.vx = Math.max(-speedLimit, Math.min(speedLimit, p.vx));
-            p.vy = Math.max(-speedLimit, Math.min(speedLimit, p.vy));
+            p.vx *= 0.75; p.vy *= 0.75;
+            if (Math.abs(p.vx) < 0.05) p.vx = 0;
+            if (Math.abs(p.vy) < 0.05) p.vy = 0;
 
             if (!p.controllingDecoyId) {
                 let nextX = p.x + p.vx; if (!checkWallCollision(nextX, p.y, 16, room.map)) p.x = nextX;
@@ -548,11 +549,17 @@ io.on('connection', (socket) => {
         let room = rooms[socket.roomId]; if (!room || room.state !== "playing") return;
         let p = room.players[socket.id]; if (!p || p.hp <= 0) return;
         
-        let speedLimit = (WEAPONS[p.loadout[p.activeWeaponIndex]]?.selfSlow) ? 4.5 : 8.5;
-        if (Date.now() < p.stimActiveUntil) speedLimit += 4.0;
+        let curWep = p.loadout[p.activeWeaponIndex] || 'railgun';
+        let profile = WEAPONS[curWep] || WEAPONS.railgun;
+        let speed = profile.selfSlow ? 2.5 : 4.2;
+        if (Date.now() < p.stimActiveUntil) speed += 2.0;
 
-        if (data.w) p.vy -= 1.2; if (data.s) p.vy += 1.2;
-        if (data.a) p.vx -= 1.2; if (data.d) p.vx += 1.2;
+        let dx = 0; let dy = 0;
+        if (data.w) dy -= 1; if (data.s) dy += 1;
+        if (data.a) dx -= 1; if (data.d) dx += 1;
+
+        if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
+        p.vx += dx * speed * 0.25; p.vy += dy * speed * 0.25;
         p.angle = data.angle;
     });
 

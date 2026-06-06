@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CyberStrike Tactical Arena</title>
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; background: #0b0b12; font-family: "Courier New", monospace; color: #f1f5f9; user-select: none; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #0b0b12; font-family: "Courier New", monospace; color: #f1f5f9; user-select: none; touch-action: none; }
         #gameCanvas { display: block; width: 100vw; height: 100vh; }
         .fullscreen-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(4, 4, 8, 0.97); display: flex; justify-content: center; align-items: flex-start; z-index: 100; overflow-y: auto; padding: 30px 20px; box-sizing: border-box; }
         .hidden { display: none !important; }
@@ -14,6 +14,20 @@
         .flex-col { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
         .flex-row { display: flex; gap: 12px; }
         input[type="text"], select { background: #000; border: 1px solid #00f0ff; padding: 12px; color: #00f0ff; font-weight: bold; width: 100%; box-sizing: border-box; outline: none; }
+        
+        /* Device Selector Styling */
+        .device-selector-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+        .device-btn { background: #121424; border: 1px solid #1a2035; padding: 14px; text-align: center; cursor: pointer; font-weight: bold; color: #94a3b8; text-transform: uppercase; transition: all 0.2s; }
+        .device-btn:hover { border-color: #00f0ff; color: #ffffff; }
+        .device-btn.active { background: rgba(0, 240, 255, 0.15); border: 2px solid #00f0ff; color: #00f0ff; box-shadow: 0 0 10px rgba(0, 240, 255, 0.3); }
+
+        /* Keybind Customizer Styling */
+        .controls-mapping-window { background: #07080f; border: 1px dashed #1a2035; padding: 14px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+        .bind-row { display: flex; justify-content: space-between; align-items: center; background: #121424; padding: 8px; border: 1px solid #1d243d; }
+        .bind-label { font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase; }
+        .bind-input-btn { background: #000; border: 1px solid #38bdf8; color: #38bdf8; font-weight: bold; padding: 4px 8px; font-size: 11px; cursor: pointer; min-width: 70px; text-align: center; }
+        .bind-input-btn:focus { border-color: #00ff66; color: #00ff66; outline: none; }
+
         .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; margin-bottom: 20px; text-align: left; background: rgba(0,0,0,0.5); border: 1px dashed #1a2035; padding: 12px; }
         .card { background: #121424; border: 1px solid #1a2035; padding: 12px; cursor: pointer; transition: all 0.2s ease; }
         .card:hover { border-color: #00f0ff; background: #171a30; }
@@ -31,6 +45,17 @@
         .vote-card { flex: 1; border: 1px solid #334155; background: #1e293b; padding: 15px; text-align: center; cursor: pointer; transition: border 0.2s; }
         .vote-card:hover { border-color: #00ff66; }
         .vote-count { font-size: 18px; color: #00ff66; font-weight: bold; margin-top: 5px; }
+
+        /* Mobile Layout HUD Virtual Mechanics */
+        #mobile-touch-interface { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; display: none; }
+        .touch-joystick-box { position: absolute; bottom: 30px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255, 255, 255, 0.03); border: 2px dashed rgba(0, 240, 255, 0.2); pointer-events: auto; }
+        #left-movement-joystick { left: 40px; }
+        #right-aiming-joystick { right: 40px; }
+        .joystick-thumb-node { position: absolute; top: 40px; left: 40px; width: 50px; height: 50px; border-radius: 50%; background: rgba(0, 240, 255, 0.25); border: 2px solid #00f0ff; box-shadow: 0 0 10px #00f0ff; transition: transform 0.05s linear; pointer-events: none; }
+        
+        .mobile-action-bar { position: absolute; bottom: 180px; right: 30px; display: flex; flex-direction: column; gap: 12px; pointer-events: auto; }
+        .mobile-round-btn { width: 56px; height: 56px; border-radius: 50%; border: 1px solid #00ff66; background: rgba(0, 255, 102, 0.1); color: #00ff66; font-weight: bold; font-family: monospace; display: flex; justify-content: center; align-items: center; font-size: 11px; }
+        .mobile-round-btn:active { background: #00ff66; color: #000; }
 
         #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; box-sizing: border-box; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
         .hud-panel { background: rgba(5, 6, 14, 0.9); border: 1px solid #00f0ff; padding: 14px; pointer-events: auto; }
@@ -74,6 +99,18 @@
         </div>
     </div>
 
+    <div id="mobile-touch-interface">
+        <div class="touch-joystick-box" id="left-movement-joystick"><div class="joystick-thumb-node"></div></div>
+        <div class="touch-joystick-box" id="right-aiming-joystick"><div class="joystick-thumb-node"></div></div>
+        <div class="mobile-action-bar">
+            <button class="mobile-round-btn" style="border-color:#38bdf8; color:#38bdf8; background:rgba(56,189,248,0.1);" onclick="handleMobileAction('shoot')">FIRE</button>
+            <button class="mobile-round-btn" style="border-color:#fbbf24; color:#fbbf24; background:rgba(251,191,36,0.1);" onclick="handleMobileAction('reload')">RELOAD</button>
+            <button class="mobile-round-btn" onclick="handleMobileAction('ab1')">ABIL 1</button>
+            <button class="mobile-round-btn" onclick="handleMobileAction('ab2')">ABIL 2</button>
+            <button class="mobile-round-btn" style="border-color:#e2e8f0; color:#ffffff; background:rgba(255,255,255,0.05); width:80px; border-radius:4px;" onclick="handleMobileAction('swap')">CYCLE WEP</button>
+        </div>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
 
     <div id="hud" class="hidden">
@@ -85,12 +122,12 @@
             <div class="hud-panel" id="weapon-display" style="width: 320px; font-size: 13px; border-color: #38bdf8;">
                 <div id="active-wep-line" style="font-weight: bold; color: #38bdf8; margin-bottom: 4px;">WEAPON: SECURING...</div>
                 <div id="ammo-line" style="font-size: 18px; font-weight: bold; color: #fbbf24;">AMMO: --</div>
-                <div id="slots-line" style="color: #64748b; font-size: 11px; margin-top: 4px;">Toggle slots via keys [1], [2], [3]</div>
+                <div id="slots-line" style="color: #64748b; font-size: 11px; margin-top: 4px;">Toggle slots via your mapped hotkeys</div>
             </div>
             <div class="hud-panel" id="cooldown-panel">
                 <div style="font-weight: bold; border-bottom: 1px solid #00ff66; padding-bottom: 4px; margin-bottom: 6px; color: #ffffff;">TACTICAL COOLDOWN TRACKER</div>
-                <div class="cd-line"><span>[M] ABILITY 1:</span><span id="cd-m-status" class="cd-ready">READY</span></div>
-                <div class="cd-line"><span>[N] ABILITY 2:</span><span id="cd-n-status" class="cd-ready">READY</span></div>
+                <div class="cd-line"><span>ABILITY 1:</span><span id="cd-m-status" class="cd-ready">READY</span></div>
+                <div class="cd-line"><span>ABILITY 2:</span><span id="cd-n-status" class="cd-ready">READY</span></div>
             </div>
         </div>
     </div>
