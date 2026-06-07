@@ -22,17 +22,10 @@ function buildDynamicWorldMatrices() {
             if (horizontal) mapGrid[wx + l][wy] = 1; else mapGrid[wx][wy + l] = 1;
         }
     }
-    for (let r = 0; r < 8; r++) {
-        let rx = Math.floor(Math.random() * (BLOCKS_COUNT - 10)) + 5;
-        let ry = Math.floor(Math.random() * (BLOCKS_COUNT - 10)) + 5;
-        for (let x = 0; x < 3; x++) {
-            for (let y = 0; y < 3; y++) { mapGrid[rx + x][ry + y] = 2; }
-        }
-    }
 }
 buildDynamicWorldMatrices();
 
-let gameState = { players: {}, bullets: [], fields: [], scores: { red: 0, blue: 0 }, state: 'lobby', matchTimer: 180, gamemode: 'TDM' };
+let gameState = { players: {}, decoys: [], bullets: [], fields: [], scores: { red: 0, blue: 0 }, state: 'lobby', matchTimer: 180, gamemode: 'TDM' };
 let matchmakingQueue = [];
 
 function getRequiredPlayersCount(clashType, gamemode) {
@@ -61,6 +54,22 @@ function checkServerWallCollision(x, y, radius) {
     return false;
 }
 
+// ACTIVE CLOCK RUN TICK TRIGGERED ON MATCH COMMENCEMENT
+let matchClockInterval = null;
+function activateMatchTimerCountdown() {
+    if (matchClockInterval) clearInterval(matchClockInterval);
+    matchClockInterval = setInterval(() => {
+        if (gameState.state === 'playing') {
+            gameState.matchTimer--;
+            if (gameState.matchTimer <= 0) {
+                gameState.state = 'lobby';
+                gameState.matchTimer = 180;
+                clearInterval(matchClockInterval);
+            }
+        }
+    }, 1000);
+}
+
 io.on('connection', (socket) => {
     socket.on('joinQueue', (data) => {
         let pProfile = {
@@ -71,6 +80,7 @@ io.on('connection', (socket) => {
             activeWeaponIndex: 0, ammo: 30, isReloading: false,
             ability1ReadyAt: 0, ability2ReadyAt: 0, ability3ReadyAt: 0,
             stimActiveUntil: 0, cloakActive: false, phaseActive: false, positionAnchored: false,
+            shieldActiveUntil: 0, radarPulseActiveUntil: 0, damageBoostUntil: 0, berserkUntil: 0,
             angle: 0, lastInputState: { w: false, a: false, s: false, d: false, angle: 0 }
         };
         
@@ -80,9 +90,8 @@ io.on('connection', (socket) => {
 
         let needed = getRequiredPlayersCount(data.clashType, data.gamemode);
 
-        // INSTANT STATE TRANSITION ACTION BUFFER: TRANSFERS OBJECT KEYS IMMEDIATELY WITHOUT DELAY TICK COOLDOWN
         if (matchmakingQueue.length >= needed && gameState.state === 'lobby') {
-            gameState.state = 'playing'; // Change game state instantly before firing connection events
+            gameState.state = 'playing';
             matchmakingQueue.forEach(p => { gameState.players[p.id] = p; });
             
             if (gameState.gamemode === 'ZOMBIE') {
@@ -92,6 +101,7 @@ io.on('connection', (socket) => {
             }
 
             matchmakingQueue = [];
+            activateMatchTimerCountdown();
             io.emit('matchStarted', { map: mapGrid });
         } else {
             let list = matchmakingQueue.map(p => ({ name: p.name, device: p.device }));
@@ -128,8 +138,12 @@ io.on('connection', (socket) => {
 
         let type = p.loadout[p.activeWeaponIndex];
         let pAngle = p.angle;
-        let baseBullet = { x: p.x + Math.cos(pAngle)*22, y: p.y + Math.sin(pAngle)*22, vx: Math.cos(pAngle)*650, vy: Math.sin(pAngle)*650, radius: 4, color: '#f59e0b', ownerId: p.id, life: 2.0, type: 'standard', dmg: 15 };
+        let finalDmg = 15;
+        if (p.damageBoostUntil && Date.now() < p.damageBoostUntil) finalDmg = 30;
 
+        let baseBullet = { x: p.x + Math.cos(pAngle)*22, y: p.y + Math.sin(pAngle)*22, vx: Math.cos(pAngle)*650, vy: Math.sin(pAngle)*650, radius: 4, color: '#f59e0b', ownerId: p.id, life: 2.0, type: 'standard', dmg: finalDmg };
+
+        // IMPLEMENTED SPECIFIC WEAPON ACTION TYPES MATCHING THE SYSTEM PROFILES
         if (type === 'railgun') {
             baseBullet.vx *= 2.5; baseBullet.dmg = 35; baseBullet.radius = 2; gameState.bullets.push(baseBullet);
         } else if (type === 'shotgun') {
@@ -157,6 +171,16 @@ io.on('connection', (socket) => {
             baseBullet.type = 'g_star'; baseBullet.life = 1.2; gameState.bullets.push(baseBullet);
         } else if (type === 'cluster_bomb') {
             baseBullet.type = 'cluster'; baseBullet.life = 1.1; gameState.bullets.push(baseBullet);
+        } else if (type === 'micro_nuke') {
+            baseBullet.radius = 12; baseBullet.vx *= 0.4; baseBullet.vy *= 0.4; baseBullet.dmg = 75; baseBullet.type = 'nuke'; gameState.bullets.push(baseBullet);
+        } else if (type === 'laser_beam') {
+            baseBullet.life = 0.3; baseBullet.vx *= 1.4; baseBullet.vy *= 1.4; baseBullet.dmg = 8; gameState.bullets.push(baseBullet);
+        } else if (type === 'tesla_shock') {
+            baseBullet.type = 'homing'; baseBullet.color = '#a855f7'; baseBullet.vx *= 1.1; gameState.bullets.push(baseBullet);
+        } else if (type === 'slugger_cannon') {
+            baseBullet.type = 'pushback'; baseBullet.vx *= 1.3; baseBullet.dmg = 30; gameState.bullets.push(baseBullet);
+        } else if (type === 'poison_dart') {
+            baseBullet.type = 'poison'; baseBullet.color = '#22c55e'; gameState.bullets.push(baseBullet);
         } else {
             gameState.bullets.push(baseBullet);
         }
@@ -167,11 +191,17 @@ io.on('connection', (socket) => {
         let name = p.abilities[slotIdx]; let now = Date.now(); let readyProp = `ability${slotIdx + 1}ReadyAt`;
         if (now < p[readyProp]) return; p[readyProp] = now + 12000;
 
+        // IMPLEMENTED INTEGRAL ABILITY EXECUTION LOOPS
         if (name === 'blink') {
             let bx = p.x + Math.cos(p.angle) * 140; let by = p.y + Math.sin(p.angle) * 140;
             if (!checkServerWallCollision(bx, by, 16)) { p.x = bx; p.y = by; }
         } else if (name === 'stim') {
             p.stimActiveUntil = now + 4000; p.hp = Math.min(100, p.hp + 20);
+        } else if (name === 'decoy') {
+            // SPAWNS AN INDEPENDENT RUNNING REPLICA MODEL CONSTRUCT FEIGNING RETREAT
+            gameState.decoys.push({ x: p.x, y: p.y, vx: Math.cos(p.angle + Math.PI)*190, vy: Math.sin(p.angle + Math.PI)*190, angle: p.angle + Math.PI, life: 5.0, ownerId: p.id });
+        } else if (name === 'shield') {
+            p.shieldActiveUntil = now + 4000;
         } else if (name === 'stealth_cloak') {
             p.cloakActive = true; setTimeout(() => { p.cloakActive = false; }, 6000);
         } else if (name === 'phase_shift') {
@@ -192,6 +222,18 @@ io.on('connection', (socket) => {
             let bx = Math.floor((p.x + Math.cos(p.angle)*50)/GRID_SIZE);
             let by = Math.floor((p.y + Math.sin(p.angle)*50)/GRID_SIZE);
             if (bx > 0 && bx < BLOCKS_COUNT-1 && by > 0 && by < BLOCKS_COUNT-1) { mapGrid[bx][by] = 1; }
+        } else if (name === 'radar') {
+            p.radarPulseActiveUntil = now + 4000;
+        } else if (name === 'damage_boost') {
+            p.damageBoostUntil = now + 4000;
+        } else if (name === 'berserk') {
+            p.berserkUntil = now + 5000; p.ammo = 30;
+        } else if (name === 'shockwave') {
+            gameState.bullets = gameState.bullets.filter(b => Math.hypot(b.x - p.x, b.y - p.y) > 150);
+        } else if (name === 'gravity_well') {
+            gameState.fields.push({ x: p.x, y: p.y, radius: 130, type: 'acid', life: 3.0 });
+        } else if (name === 'quantum_recall') {
+            p.x = 200 + Math.random() * 1600; p.y = 200 + Math.random() * 1600;
         }
     });
 
@@ -201,13 +243,22 @@ io.on('connection', (socket) => {
     });
 });
 
-// HIGH-TICK RATE ENGINE RECTIFIER: SERVER TICK CLAMP RUNNING AT AN ABSOLUTE 60HZ REFRESH MATRIX
-let lastTickTime = performance.now();
 setInterval(() => {
-    let now = performance.now(); let dt = (now - lastTickTime) / 1000; lastTickTime = now;
-    if (dt > 0.05) dt = 0.05; // Ensures no heavy distance calculation snaps occur on frame drop
+    let now = performance.now(); let dt = 1 / 60;
 
     if (gameState.state !== 'playing') return;
+
+    // UPDATE DECOY MATRIX COORDINATES AND PROCESS WALL LIMITS
+    if (gameState.decoys) {
+        for (let i = gameState.decoys.length - 1; i >= 0; i--) {
+            let d = gameState.decoys[i]; d.life -= dt;
+            if (d.life <= 0 || checkServerWallCollision(d.x + d.vx*dt, d.y + d.vy*dt, 14)) {
+                gameState.decoys.splice(i, 1);
+            } else {
+                d.x += d.vx * dt; d.y += d.vy * dt;
+            }
+        }
+    }
 
     for (let i = gameState.fields.length - 1; i >= 0; i--) {
         let f = gameState.fields[i]; f.life -= dt;
@@ -244,6 +295,7 @@ setInterval(() => {
 
         if (b.life <= 0 || (hit && b.type !== 'pierce_wave')) {
             if (b.type === 'napalm_lob') gameState.fields.push({ x: b.x, y: b.y, radius: 70, type: 'acid', life: 4.5 });
+            if (b.type === 'nuke') gameState.fields.push({ x: b.x, y: b.y, radius: 140, type: 'acid', life: 3.0 });
             if (b.type === 'cluster') {
                 for (let c=0; c<6; c++) {
                     let a = (Math.PI*2/6)*c;
@@ -255,12 +307,15 @@ setInterval(() => {
 
         Object.values(gameState.players).forEach(p => {
             if (p.hp > 0 && p.id !== b.ownerId && Math.hypot(p.x - b.x, p.y - b.y) < 22) {
-                if (p.cloakActive) return;
+                if (p.cloakActive || (p.shieldActiveUntil && Date.now() < p.shieldActiveUntil)) return;
                 let dmg = b.dmg || 15; p.hp -= dmg;
                 if (b.type === 'freeze') p.stimActiveUntil = 0;
+                if (b.type === 'pushback') { p.x += Math.cos(p.angle + Math.PI)*40; p.y += Math.sin(p.angle + Math.PI)*40; }
                 if (b.type === 'vampire') {
                     let owner = gameState.players[b.ownerId]; if (owner) owner.hp = Math.min(240, owner.hp + (dmg * 0.5));
                 }
+                if (b.type === 'poison') { p.hp -= 5; }
+
                 if (p.hp <= 0) {
                     let k = gameState.players[b.ownerId];
                     if (k) { if (k.team === 'red') gameState.scores.red++; else gameState.scores.blue++; }
@@ -283,9 +338,10 @@ setInterval(() => {
         if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
 
         let speed = 252;
-        if (p.device === 'mobile') speed *= 1.15; // Normalized tick velocity scalar for cross platform equality
+        if (p.device === 'mobile') speed *= 1.15;
         if (p.loadout && p.loadout[p.activeWeaponIndex] === 'chaingun') speed = 150;
         if (Date.now() < p.stimActiveUntil) speed += 120;
+        if (p.berserkUntil && Date.now() < p.berserkUntil) speed *= 1.3;
 
         let nextX = p.x + (dx * speed * dt); let nextY = p.y + (dy * speed * dt);
 

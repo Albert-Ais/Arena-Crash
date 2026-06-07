@@ -7,7 +7,7 @@ window.addEventListener('resize', fitCanvasToWindow); fitCanvasToWindow();
 
 const MAP_SIZE = 2000; const GRID_SIZE = 40;
 let myId = null; let localGrid = [];
-let serverGameState = { players: {}, bullets: [], fields: [], scores: { red: 0, blue: 0 }, state: 'lobby', matchTimer: 120 };
+let serverGameState = { players: {}, decoys: [], bullets: [], fields: [], scores: { red: 0, blue: 0 }, state: 'lobby', matchTimer: 180 };
 let camera = { x: 1000, y: 1000 }; 
 let inputState = { w: false, a: false, s: false, d: false, angle: 0 };
 
@@ -15,6 +15,7 @@ let predictedPos = { x: 1000, y: 1000 };
 let serverVerifiedPos = { x: 1000, y: 1000 };
 let hasSetInitialPos = false;
 let selectedDeviceProfile = 'pc';
+let localActiveWepIdx = 0;
 
 const WEAPONS_CATALOG = [
     { id: 'railgun', title: 'Railgun', desc: 'Instant hitscan energy beam line.' },
@@ -159,7 +160,7 @@ window.addEventListener('mousemove', (e) => {
     }
 });
 
-// FIXED MOBILE CONTROLS LOOPS: RAW PIXEL MATHEMATICS WITH RAPID SAMPLING FOR INSTANT DISPATCH
+// INTERACTIVE BUTTON CLUSTER BINDINGS AND TARGET ELEMENT ASSIGNMENTS ON MOBILE
 let activeSticksTrackers = { left: { active:false, sx:0, sy:0 }, right: { active:false, sx:0, sy:0 } };
 function initiateMobileControlsLoops() {
     const lEl = document.getElementById('left-virtual-stick');
@@ -169,7 +170,6 @@ function initiateMobileControlsLoops() {
         e.preventDefault();
         let touch = e.targetTouches[0];
         track.active = true;
-        // Recalculates dynamically based on the current viewport coordinates
         let rect = el.getBoundingClientRect();
         track.sx = rect.left + rect.width / 2;
         track.sy = rect.top + rect.height / 2;
@@ -179,29 +179,24 @@ function initiateMobileControlsLoops() {
         if (!track.active) return;
         e.preventDefault();
         let touch = null;
-        // Map correct target touches depending on screen layout quadrants
         for (let i = 0; i < e.touches.length; i++) {
-            if (isMovement && e.touches[i].clientX < window.innerWidth / 2) touch = e.touches[i];
-            if (!isMovement && e.touches[i].clientX >= window.innerWidth / 2) touch = e.touches[i];
+            if (isMovement && e.touches[i].clientX < window.innerWidth * 0.6) touch = e.touches[i];
+            if (!isMovement && e.touches[i].clientX >= window.innerWidth * 0.6) touch = e.touches[i];
         }
         if (!touch) touch = e.targetTouches[0];
 
         let dx = touch.clientX - track.sx;
         let dy = touch.clientY - track.sy;
-        let dist = Math.min(45, Math.hypot(dx, dy));
+        let dist = Math.min(40, Math.hypot(dx, dy));
         let ang = Math.atan2(dy, dx);
 
         el.querySelector('.joystick-thumb-node').style.transform = `translate(${Math.cos(ang)*dist}px, ${Math.sin(ang)*dist}px)`;
 
         if (isMovement) {
-            // High-precision threshold values for flawless and immediate velocity routing
-            inputState.w = dy < -15;
-            inputState.s = dy > 15;
-            inputState.a = dx < -15;
-            inputState.d = dx > 15;
+            inputState.w = dy < -12; inputState.s = dy > 12;
+            inputState.a = dx < -12; inputState.d = dx > 12;
         } else {
             inputState.angle = ang;
-            if (Math.hypot(dx, dy) > 20) socket.emit('shootWeapon');
         }
     }
 
@@ -218,6 +213,17 @@ function initiateMobileControlsLoops() {
     rEl.addEventListener('touchstart', (e) => stickStart(e, activeSticksTrackers.right, rEl), {passive: false});
     rEl.addEventListener('touchmove', (e) => stickMove(e, activeSticksTrackers.right, rEl, false), {passive: false});
     rEl.addEventListener('touchend', () => stickEnd(activeSticksTrackers.right, rEl, false));
+
+    // RIGHT HAND SIDE DEDICATED HOOKS CONTROLLING WEAPONS CYCLE AND OFFENSIVE ABILITIES
+    document.getElementById('mbtn-fire').addEventListener('touchstart', (e) => { e.preventDefault(); socket.emit('shootWeapon'); });
+    document.getElementById('mbtn-wep').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        localActiveWepIdx = (localActiveWepIdx + 1) % 5;
+        socket.emit('switchWeapon', localActiveWepIdx);
+    });
+    document.getElementById('mbtn-a1').addEventListener('touchstart', (e) => { e.preventDefault(); socket.emit('useAbility', 0); });
+    document.getElementById('mbtn-a2').addEventListener('touchstart', (e) => { e.preventDefault(); socket.emit('useAbility', 1); });
+    document.getElementById('mbtn-a3').addEventListener('touchstart', (e) => { e.preventDefault(); socket.emit('useAbility', 2); });
 }
 
 function checkClientWallCollision(x, y, radius) {
@@ -247,7 +253,6 @@ socket.on('lobbyUpdate', (data) => {
     document.getElementById('lobby-player-list').innerHTML = data.users.map(u => `<div>• [${u.device.toUpperCase()}] // ${u.name}</div>`).join('');
 });
 
-// CRITICAL LOBBY OVERRIDE: INSTANTLY REMOVES LAYER INTERFACES WITHOUT ANIMATION RECTIFIER LAG
 socket.on('matchStarted', (data) => {
     localGrid = data.map;
     document.getElementById('lobby-terminal').classList.add('hidden');
@@ -272,7 +277,6 @@ socket.on('playerRespawned', (data) => {
 });
 
 socket.on('serverTickUpdate', (data) => {
-    // If state changes, ensure lobby layer visibility updates immediately
     if (data.state === 'playing' && !document.getElementById('lobby-terminal').classList.contains('hidden')) {
         document.getElementById('lobby-terminal').classList.add('hidden');
         document.getElementById('hud').classList.remove('hidden');
@@ -314,12 +318,11 @@ socket.on('serverTickUpdate', (data) => {
     }
 });
 
-// HIGH RESOLUTION PHYSICS INTERPOLATION TICK FOR ZERO LAG JITTER
 let lastPhysicsLoopTimestamp = performance.now();
 function runHighPrecisionClientPrediction(currentFrameTime) {
     let dt = (currentFrameTime - lastPhysicsLoopTimestamp) / 1000;
     lastPhysicsLoopTimestamp = currentFrameTime;
-    if (dt > 0.05) dt = 0.05; // Tight clamp loop to prevent frame jumps during resource allocation shifts
+    if (dt > 0.05) dt = 0.05;
 
     if (serverGameState.state === 'playing' && myId && serverGameState.players[myId]) {
         socket.emit('playerActionInput', inputState);
@@ -332,9 +335,10 @@ function runHighPrecisionClientPrediction(currentFrameTime) {
             if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
 
             let currentMoveSpeed = me.phaseActive ? 400 : 252;
-            if (selectedDeviceProfile === 'mobile') currentMoveSpeed *= 1.15; // Smooth compensation multiplier
+            if (selectedDeviceProfile === 'mobile') currentMoveSpeed *= 1.15;
             if (me.loadout && me.loadout[me.activeWeaponIndex] === 'chaingun') currentMoveSpeed = 150;
             if (Date.now() < me.stimActiveUntil) currentMoveSpeed += 120;
+            if (me.radarPulseActiveUntil && Date.now() < me.radarPulseActiveUntil) currentMoveSpeed *= 0.8;
 
             let nextX = predictedPos.x + (dx * currentMoveSpeed * dt);
             let nextY = predictedPos.y + (dy * currentMoveSpeed * dt);
@@ -348,12 +352,11 @@ function runHighPrecisionClientPrediction(currentFrameTime) {
             }
         }
 
-        // Exponential smoothing calculation layer
         let serverDist = Math.hypot(predictedPos.x - serverVerifiedPos.x, predictedPos.y - serverVerifiedPos.y);
         if (serverDist > 64) {
             predictedPos.x = serverVerifiedPos.x; predictedPos.y = serverVerifiedPos.y;
         } else if (serverDist > 0.01) {
-            let smoothingAlpha = 1 - Math.exp(-35 * dt); // Aggressive interpolation value matrix for crisp motion alignment
+            let smoothingAlpha = 1 - Math.exp(-35 * dt);
             predictedPos.x += (serverVerifiedPos.x - predictedPos.x) * smoothingAlpha;
             predictedPos.y += (serverVerifiedPos.y - predictedPos.y) * smoothingAlpha;
         }
@@ -409,6 +412,20 @@ function paintLoop() {
         }
     });
 
+    // RENDER REPLICA MODEL CONSTRUCT CLONES SPARKED BY DECOY MATRIX
+    if (serverGameState.decoys) {
+        serverGameState.decoys.forEach(d => {
+            ctx.save();
+            ctx.translate(d.x + oX, d.y + oY);
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.5)';
+            ctx.lineWidth = 3; ctx.fillStyle = 'rgba(12,13,25,0.6)';
+            ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.rotate(d.angle);
+            ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(6, -2.5, 14, 5);
+            ctx.restore();
+        });
+    }
+
     Object.values(serverGameState.players).forEach(p => {
         if (p.hp <= 0 || (p.cloakActive && p.id !== myId)) return;
         if (p.id !== myId && !checkIfTargetVisible(predictedPos.x, predictedPos.y, p.x, p.y)) return; 
@@ -417,6 +434,12 @@ function paintLoop() {
         ctx.translate((p.id === myId ? predictedPos.x : p.x) + oX, (p.id === myId ? predictedPos.y : p.y) + oY);
         ctx.strokeStyle = p.isZombie ? '#ea580c' : (p.team === 'red' ? '#ff007f' : '#00f0ff');
         ctx.lineWidth = 4; ctx.fillStyle = '#000000';
+        
+        if (p.shieldActiveUntil && Date.now() < p.shieldActiveUntil) {
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 6;
+        }
+
         ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         ctx.rotate(p.id === myId ? inputState.angle : p.angle);
         ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5);
