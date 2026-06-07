@@ -7,42 +7,43 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
 
 const MAP_SIZE = 2000; const GRID_SIZE = 40; const BLOCKS_COUNT = MAP_SIZE / GRID_SIZE;
-const REQUIRED_PLAYERS = 2; // MATCHMAKING LOBBY CAP RATIO REQUIREMENT MINIMUMS
 
 let mapGrid = Array(BLOCKS_COUNT).fill(null).map(() => Array(BLOCKS_COUNT).fill(0));
 
-// STRUCTURAL MATRICES GENERATION LOOP (Adds walls & large square rocks blocks configurations)
-function seedStructuralWorldGrid() {
-    // 1. Build Perimeter Structural Boundary Blocks Walls
+function buildDynamicWorldMatrices() {
     for (let i = 0; i < BLOCKS_COUNT; i++) {
         mapGrid[i][0] = 1; mapGrid[i][BLOCKS_COUNT - 1] = 1;
         mapGrid[0][i] = 1; mapGrid[BLOCKS_COUNT - 1][i] = 1;
     }
-    // 2. Generate Random Interior Linear Walls (Type 1)
     for (let k = 0; k < 30; k++) {
         let wx = Math.floor(Math.random() * (BLOCKS_COUNT - 6)) + 3;
         let wy = Math.floor(Math.random() * (BLOCKS_COUNT - 6)) + 3;
         let horizontal = Math.random() > 0.5;
         for (let l = 0; l < 5; l++) {
-            if (horizontal) mapGrid[wx + l][wy] = 1;
-            else mapGrid[wx][wy + l] = 1;
+            if (horizontal) mapGrid[wx + l][wy] = 1; else mapGrid[wx][wy + l] = 1;
         }
     }
-    // 3. Generate Large Square Rock Obstacles (Type 2 - 3x3 Grid Formations)
     for (let r = 0; r < 8; r++) {
         let rx = Math.floor(Math.random() * (BLOCKS_COUNT - 10)) + 5;
         let ry = Math.floor(Math.random() * (BLOCKS_COUNT - 10)) + 5;
         for (let x = 0; x < 3; x++) {
-            for (let y = 0; y < 3; y++) {
-                mapGrid[rx + x][ry + y] = 2;
-            }
+            for (let y = 0; y < 3; y++) { mapGrid[rx + x][ry + y] = 2; }
         }
     }
 }
-seedStructuralWorldGrid();
+buildDynamicWorldMatrices();
 
-let gameState = { players: {}, bullets: [], fields: [], scores: { red: 0, blue: 0 }, state: 'lobby', matchTimer: 180 };
+let gameState = { players: {}, bullets: [], fields: [], scores: { red: 0, blue: 0 }, state: 'lobby', matchTimer: 180, gamemode: 'TDM' };
 let matchmakingQueue = [];
+
+function getRequiredPlayersCount(clashType, gamemode) {
+    if (gamemode === 'ZOMBIE') return Math.max(3, 3); // Override constraint parameters securely
+    if (clashType === '1v1') return 2;
+    if (clashType === '2v2') return 4;
+    if (clashType === '3v3') return 6;
+    if (clashType === '1v1v1') return 3;
+    return 4; // FFA Default boundary threshold
+}
 
 function checkServerWallCollision(x, y, radius) {
     const rBuffer = radius - 0.5;
@@ -55,9 +56,7 @@ function checkServerWallCollision(x, y, radius) {
         for (let gy = startY; gy <= endY; gy++) {
             if (mapGrid[gx] && mapGrid[gx][gy] !== 0) {
                 let wX = gx * GRID_SIZE; let wY = gy * GRID_SIZE;
-                if (x + rBuffer > wX && x - rBuffer < wX + GRID_SIZE && y + rBuffer > wY && y - rBuffer < wY + GRID_SIZE) {
-                    return true;
-                }
+                if (x + rBuffer > wX && x - rBuffer < wX + GRID_SIZE && y + rBuffer > wY && y - rBuffer < wY + GRID_SIZE) return true;
             }
         }
     }
@@ -66,10 +65,10 @@ function checkServerWallCollision(x, y, radius) {
 
 io.on('connection', (socket) => {
     socket.on('joinQueue', (data) => {
-        let playerProfile = {
-            id: socket.id, name: data.name,
+        let pProfile = {
+            id: socket.id, name: data.name, device: data.device, clashType: data.clashType, gamemode: data.gamemode,
             x: 200 + Math.random() * 1600, y: 200 + Math.random() * 1600,
-            hp: 100, team: matchmakingQueue.length % 2 === 0 ? 'red' : 'blue',
+            hp: 100, team: matchmakingQueue.length % 2 === 0 ? 'red' : 'blue', isZombie: false,
             loadout: data.loadout.slice(0,5), abilities: data.abilities.slice(0,3),
             activeWeaponIndex: 0, ammo: 30, isReloading: false,
             ability1ReadyAt: 0, ability2ReadyAt: 0, ability3ReadyAt: 0,
@@ -77,19 +76,36 @@ io.on('connection', (socket) => {
             angle: 0, lastInputState: { w: false, a: false, s: false, d: false, angle: 0 }
         };
         
-        matchmakingQueue.push(playerProfile);
+        matchmakingQueue.push(pProfile);
+        gameState.gamemode = data.gamemode;
         socket.emit('roomJoined', { map: mapGrid });
 
-        // Evaluate LOBBY thresholds condition rulesets
-        if (matchmakingQueue.length >= REQUIRED_PLAYERS && gameState.state === 'lobby') {
+        let needed = getRequiredPlayersCount(data.clashType, data.gamemode);
+
+        if (matchmakingQueue.length >= needed && gameState.state === 'lobby') {
             matchmakingQueue.forEach(p => { gameState.players[p.id] = p; });
+            
+            // Zombie Infection Archetype Matrix Formulation Loop
+            if (gameState.gamemode === 'ZOMBIE') {
+                let keys = Object.keys(gameState.players);
+                let patientZero = keys[Math.floor(Math.random() * keys.length)];
+                gameState.players[patientZero].isZombie = true;
+                gameState.players[patientZero].hp = 240; // Augmented status mechanics
+            }
+
             gameState.state = 'playing';
             matchmakingQueue = [];
             io.emit('matchStarted', { map: mapGrid });
         } else {
-            let infoPack = matchmakingQueue.map(p => ({ name: p.name }));
-            io.emit('lobbyUpdate', { count: matchmakingQueue.length, required: REQUIRED_PLAYERS, users: infoPack });
+            let list = matchmakingQueue.map(p => ({ name: p.name, device: p.device, clashType: p.clashType, gamemode: p.gamemode }));
+            io.emit('lobbyUpdate', { count: matchmakingQueue.length, required: needed, users: list });
         }
+    });
+
+    socket.on('sendChatMessageEvent', (text) => {
+        let p = gameState.players[socket.id];
+        let senderName = p ? p.name : "System";
+        io.emit('receiveChatMessageBroadcast', { sender: senderName, text: text.replace(/<[^>]*>/g, '') });
     });
 
     socket.on('playerActionInput', (input) => {
@@ -109,7 +125,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // WEAPONS LOGIC EMITTER INTEGRATION LOOPS
     socket.on('shootWeapon', () => {
         let p = gameState.players[socket.id];
         if (!p || p.hp <= 0 || p.ammo <= 0 || p.isReloading || p.positionAnchored) return;
@@ -158,49 +173,46 @@ io.on('connection', (socket) => {
             baseBullet.type = 'cluster'; baseBullet.life = 1.1;
             gameState.bullets.push(baseBullet);
         } else {
-            gameState.bullets.push(baseBullet); // Standard bullet default path configuration fallback
+            gameState.bullets.push(baseBullet);
         }
     });
 
-    // ACTIVE ABILITY ABSTRACTION INTERACTION CORES
     socket.on('useAbility', (slotIdx) => {
         let p = gameState.players[socket.id];
         if (!p || p.hp <= 0) return;
-        let abilityName = p.abilities[slotIdx];
+        let name = p.abilities[slotIdx];
         let now = Date.now();
         let readyProp = `ability${slotIdx + 1}ReadyAt`;
 
-        if (now < p[readyProp]) return; // CD rule check block
-        p[readyProp] = now + 12000; // General 12s cool-down loop cycle boundary setting
+        if (now < p[readyProp]) return;
+        p[readyProp] = now + 12000;
 
-        if (abilityName === 'blink') {
+        if (name === 'blink') {
             let bx = p.x + Math.cos(p.angle) * 140; let by = p.y + Math.sin(p.angle) * 140;
             if (!checkServerWallCollision(bx, by, 16)) { p.x = bx; p.y = by; }
-        } else if (abilityName === 'stim') {
+        } else if (name === 'stim') {
             p.stimActiveUntil = now + 4000; p.hp = Math.min(100, p.hp + 20);
-        } else if (abilityName === 'stealth_cloak') {
+        } else if (name === 'stealth_cloak') {
             p.cloakActive = true; setTimeout(() => { p.cloakActive = false; }, 6000);
-        } else if (abilityName === 'phase_shift') {
+        } else if (name === 'phase_shift') {
             p.phaseActive = true; setTimeout(() => { p.phaseActive = false; }, 2500);
-        } else if (abilityName === 'smoke') {
+        } else if (name === 'smoke') {
             gameState.fields.push({ x: p.x, y: p.y, radius: 100, type: 'smoke', life: 6.0 });
-        } else if (abilityName === 'heal_matrix') {
+        } else if (name === 'heal_matrix') {
             gameState.fields.push({ x: p.x, y: p.y, radius: 80, type: 'heal', life: 5.0 });
-        } else if (abilityName === 'acid_trail') {
-            let ticks = 0;
-            let interval = setInterval(() => {
-                if (p.hp > 0 && ticks++ < 15) gameState.fields.push({ x: p.x, y: p.y, radius: 45, type: 'acid', life: 4.0 });
-                else clearInterval(interval);
+        } else if (name === 'acid_trail') {
+            let t = 0;
+            let iv = setInterval(() => {
+                if (p.hp > 0 && t++ < 15) gameState.fields.push({ x: p.x, y: p.y, radius: 45, type: 'acid', life: 4.0 });
+                else clearInterval(iv);
             }, 250);
-        } else if (abilityName === 'iron_fortress') {
-            p.positionAnchored = true; p.hp = Math.min(100, p.hp + 40);
+        } else if (name === 'iron_fortress') {
+            p.positionAnchored = true; p.hp = Math.min(240, p.hp + 40);
             setTimeout(() => { p.positionAnchored = false; }, 4000);
-        } else if (abilityName === 'wall_build') {
+        } else if (name === 'wall_build') {
             let bx = Math.floor((p.x + Math.cos(p.angle)*50)/GRID_SIZE);
             let by = Math.floor((p.y + Math.sin(p.angle)*50)/GRID_SIZE);
-            if (bx > 0 && bx < BLOCKS_COUNT-1 && by > 0 && by < BLOCKS_COUNT-1) {
-                mapGrid[bx][by] = 1; // Generates dynamic destructible or permanent barrier blocks
-            }
+            if (bx > 0 && bx < BLOCKS_COUNT-1 && by > 0 && by < BLOCKS_COUNT-1) { mapGrid[bx][by] = 1; }
         }
     });
 
@@ -210,7 +222,7 @@ io.on('connection', (socket) => {
     });
 });
 
-// Primary Server Engine Fixed Physics Tick Loop Execution
+// Fixed Physics Update Tick Logic Loop
 let lastTickTime = performance.now();
 setInterval(() => {
     let now = performance.now(); let dt = (now - lastTickTime) / 1000; lastTickTime = now;
@@ -218,55 +230,47 @@ setInterval(() => {
 
     if (gameState.state !== 'playing') return;
 
-    // Environmental ticking fields update logic loop
     for (let i = gameState.fields.length - 1; i >= 0; i--) {
         let f = gameState.fields[i]; f.life -= dt;
         if (f.life <= 0) { gameState.fields.splice(i, 1); continue; }
         
         if (f.type === 'acid') {
             Object.values(gameState.players).forEach(p => {
-                if (p.hp > 0 && Math.hypot(p.x - f.x, p.y - f.y) < f.radius + 12) {
-                    p.hp -= 18 * dt; // Ticking corrosive acid values damage processing loop bounds
-                }
+                if (p.hp > 0 && Math.hypot(p.x - f.x, p.y - f.y) < f.radius + 12) { p.hp -= 18 * dt; }
             });
         }
         if (f.type === 'heal') {
             Object.values(gameState.players).forEach(p => {
-                if (p.hp > 0 && Math.hypot(p.x - f.x, p.y - f.y) < f.radius) {
-                    p.hp = Math.min(100, p.hp + 12 * dt);
-                }
+                if (p.hp > 0 && Math.hypot(p.x - f.x, p.y - f.y) < f.radius) { p.hp = Math.min(240, p.hp + 12 * dt); }
             });
         }
     }
 
-    // Bullets Projectiles Update and Specialized Features Logic Iteration
     for (let i = gameState.bullets.length - 1; i >= 0; i--) {
         let b = gameState.bullets[i]; b.life -= dt;
         
-        // Homing projectile tracking lookups
         if (b.type === 'homing') {
-            let closestTarget = null; let minD = 500;
+            let target = null; let minD = 500;
             Object.values(gameState.players).forEach(p => {
                 if (p.id !== b.ownerId && p.hp > 0) {
                     let d = Math.hypot(p.x - b.x, p.y - b.y);
-                    if (d < minD) { minD = d; closestTarget = p; }
+                    if (d < minD) { minD = d; target = p; }
                 }
             });
-            if (closestTarget) {
-                let targetAngle = Math.atan2(closestTarget.y - b.y, closestTarget.x - b.x);
-                b.vx = Math.cos(targetAngle) * 450; b.vy = Math.sin(targetAngle) * 450;
+            if (target) {
+                let ang = Math.atan2(target.y - b.y, target.x - b.x);
+                b.vx = Math.cos(ang) * 450; b.vy = Math.sin(ang) * 450;
             }
         }
 
         b.x += b.vx * dt; b.y += b.vy * dt;
 
-        let wallHit = checkServerWallCollision(b.x, b.y, b.radius);
-        if (wallHit && b.type === 'bounce' && b.bounces-- > 0) {
-            b.vx = -b.vx; b.y -= b.vy * dt * 2; // Inverts movement trajectory configurations instantly
-            wallHit = false;
+        let hit = checkServerWallCollision(b.x, b.y, b.radius);
+        if (hit && b.type === 'bounce' && b.bounces-- > 0) {
+            b.vx = -b.vx; b.y -= b.vy * dt * 2; hit = false;
         }
 
-        if (b.life <= 0 || (wallHit && b.type !== 'pierce_wave')) {
+        if (b.life <= 0 || (hit && b.type !== 'pierce_wave')) {
             if (b.type === 'napalm_lob') gameState.fields.push({ x: b.x, y: b.y, radius: 70, type: 'acid', life: 4.5 });
             if (b.type === 'cluster') {
                 for (let c=0; c<6; c++) {
@@ -277,25 +281,32 @@ setInterval(() => {
             gameState.bullets.splice(i, 1); continue;
         }
 
-        // Entity Damage Overlapping Processing Loop Bounds
         Object.values(gameState.players).forEach(p => {
             if (p.hp > 0 && p.id !== b.ownerId && Math.hypot(p.x - b.x, p.y - b.y) < 22) {
-                if (p.cloakActive) return; // Ignores collision check loops on hidden targets
+                if (p.cloakActive) return;
                 
-                let rawDmg = b.dmg || 15;
-                p.hp -= rawDmg;
+                let dmg = b.dmg || 15;
+                p.hp -= dmg;
 
-                if (b.type === 'freeze') p.stimActiveUntil = 0; // Clears movement buffers instantly on freeze rays impact
+                if (b.type === 'freeze') p.stimActiveUntil = 0;
                 if (b.type === 'vampire') {
                     let owner = gameState.players[b.ownerId];
-                    if (owner) owner.hp = Math.min(100, owner.hp + (rawDmg * 0.5));
+                    if (owner) owner.hp = Math.min(240, owner.hp + (dmg * 0.5));
                 }
 
                 if (p.hp <= 0) {
-                    let killer = gameState.players[b.ownerId];
-                    if (killer) { if (killer.team === 'red') gameState.scores.red++; else gameState.scores.blue++; }
+                    let k = gameState.players[b.ownerId];
+                    if (k) { if (k.team === 'red') gameState.scores.red++; else gameState.scores.blue++; }
+                    
+                    // Transmute human operators into zombies automatically inside Zombie game modes
+                    if (gameState.gamemode === 'ZOMBIE') {
+                        p.isZombie = true; p.hp = 180;
+                    } else {
+                        p.hp = 100;
+                    }
+                    
                     setTimeout(() => {
-                        p.hp = 100; p.x = 200 + Math.random() * 1600; p.y = 200 + Math.random() * 1600;
+                        p.x = 200 + Math.random() * 1600; p.y = 200 + Math.random() * 1600;
                         io.emit('playerRespawned', { id: p.id, x: p.x, y: p.y });
                     }, 4000);
                 }
@@ -304,7 +315,6 @@ setInterval(() => {
         });
     }
 
-    // Standard Character Spatial Processing Loop Updates
     Object.values(gameState.players).forEach(p => {
         if (p.hp <= 0 || p.positionAnchored) return;
         let input = p.lastInputState;
@@ -314,6 +324,7 @@ setInterval(() => {
         if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
 
         let speed = 252;
+        if (p.device === 'mobile') speed *= 1.08; // Cross-platform balancing factor calibration
         if (p.loadout && p.loadout[p.activeWeaponIndex] === 'chaingun') speed = 150;
         if (Date.now() < p.stimActiveUntil) speed += 120;
 
@@ -321,8 +332,7 @@ setInterval(() => {
         let nextY = p.y + (dy * speed * dt);
 
         if (p.phaseActive) {
-            p.x = Math.max(15, Math.min(MAP_SIZE - 15, nextX));
-            p.y = Math.max(15, Math.min(MAP_SIZE - 15, nextY));
+            p.x = Math.max(15, Math.min(MAP_SIZE - 15, nextX)); p.y = Math.max(15, Math.min(MAP_SIZE - 15, nextY));
         } else {
             if (!checkServerWallCollision(nextX, p.y, 16)) p.x = nextX;
             if (!checkServerWallCollision(p.x, nextY, 16)) p.y = nextY;
@@ -334,4 +344,4 @@ setInterval(() => {
 }, 1000 / 60);
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => { console.log(`SYSTEMS SECURED // EXPANDED CORE ONLINE ON PORT ${PORT}`); });
+http.listen(PORT, () => { console.log(`NEON APEX LIVE FRAMEWORK RUNNING ON PORT // ${PORT}`); });
