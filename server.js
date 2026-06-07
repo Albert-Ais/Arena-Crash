@@ -302,4 +302,4 @@ setInterval(() => {
 }, 1000 / 60);
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => { console.log(`SMOOTH ENGINE CORE ONLINE ON PORT ${PORT}`); })
+http.listen(PORT, () => { console.log(`SMOOTH ENGINE CORE ONLINE ON PORT ${PORT}`); });
