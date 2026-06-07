@@ -10,7 +10,6 @@ let myId = null; let localGrid = []; let localMapStyle = 'desert_outpost';
 let serverGameState = { players: {}, bullets: [], decoys: [], fields: [], scores: { red: 0, blue: 0 }, state: 'lobby', matchTimer: 120, mode: 'TDM' };
 let camera = { x: 1000, y: 1000 }; 
 let inputState = { w: false, a: false, s: false, d: false, angle: 0 };
-let radarPulses = [];
 
 let predictedPos = { x: 1000, y: 1000 };
 let serverVerifiedPos = { x: 1000, y: 1000 };
@@ -93,7 +92,7 @@ function buildHardwareConfigInterface() {
             </div>
         </div>
 
-        \${compileGridHTML('init')}
+        ${compileGridHTML('init')}
         <button id="dispatch-queue-btn" class="submit-btn">ENGAGE MATCH FRAMEWORK</button>
     `;
 }
@@ -102,14 +101,14 @@ function compileGridHTML(suffix) {
     return `
         <div class="category-header">Weapons Systems (Select Exactly 3)</div>
         <div class="grid-layout">
-            \${AVAILABLE_WEAPONS_LIST.map(w => `
-                <div class="card"><label><input type="checkbox" class="wep-chk-\${suffix}" value="\${w.id}"> <span class="card-title" style="color: \${w.color};">\${w.title}</span></label><div class="card-text">\${w.desc}</div></div>
+            ${AVAILABLE_WEAPONS_LIST.map(w => `
+                <div class="card"><label><input type="checkbox" class="wep-chk-${suffix}" value="${w.id}"> <span class="card-title" style="color: ${w.color};">${w.title}</span></label><div class="card-text">${w.desc}</div></div>
             `).join('')}
         </div>
         <div class="category-header ability-hdr">Abilities Grid Matrix (Select Exactly 2)</div>
         <div class="grid-layout">
-            \${AVAILABLE_ABILITIES_LIST.map(a => `
-                <div class="card"><label><input type="checkbox" class="abil-chk-\${suffix}" value="\${a.id}"> <span class="card-title" style="color:#00ff66;">\${a.title}</span></label><div class="card-text">\${a.desc}</div></div>
+            ${AVAILABLE_ABILITIES_LIST.map(a => `
+                <div class="card"><label><input type="checkbox" class="abil-chk-${suffix}" value="${a.id}"> <span class="card-title" style="color:#00ff66;">${a.title}</span></label><div class="card-text">${a.desc}</div></div>
             `).join('')}
         </div>
     `;
@@ -120,7 +119,7 @@ document.getElementById('primary-registry-box').innerHTML = buildHardwareConfigI
 window.assignHardwareProfile = function(profile) {
     selectedDeviceProfile = profile;
     document.querySelectorAll('.device-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`dev-btn-\${profile}`).classList.add('active');
+    document.getElementById(`dev-btn-${profile}`).classList.add('active');
 
     let container = document.getElementById('dynamic-binds-customizer-wrapper');
     if (profile === 'pc') {
@@ -128,14 +127,14 @@ window.assignHardwareProfile = function(profile) {
             <div class="category-header" style="color: #38bdf8; border-color: #38bdf8;">CUSTOMIZE KEYBOARD INPUT MAPS</div>
             <p style="font-size:11px; color:#94a3b8; margin: 0 0 10px 4px; font-family:sans-serif;">* Note: Arrow keys are also automatically enabled alongside your custom movement keys.</p>
             <div class="controls-mapping-window">
-                <div class="bind-row"><span class="bind-label">Move Forward</span><button class="bind-input-btn" id="bk-up" onclick="primeInputCapture('up')">\${keyboardBinds.up.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Move Left</span><button class="bind-input-btn" id="bk-left" onclick="primeInputCapture('left')">\${keyboardBinds.left.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Move Backward</span><button class="bind-input-btn" id="bk-down" onclick="primeInputCapture('down')">\${keyboardBinds.down.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Move Right</span><button class="bind-input-btn" id="bk-right" onclick="primeInputCapture('right')">\${keyboardBinds.right.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Weapon Reload</span><button class="bind-input-btn" id="bk-reload" onclick="primeInputCapture('reload')">\${keyboardBinds.reload.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Primary Fire</span><button class="bind-input-btn" id="bk-shoot" onclick="primeInputCapture('shoot')">\${keyboardBinds.shoot === ' ' ? 'SPACE' : keyboardBinds.shoot.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Ability One</span><button class="bind-input-btn" id="bk-ability1" onclick="primeInputCapture('ability1')">\${keyboardBinds.ability1.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Ability Two</span><button class="bind-input-btn" id="bk-ability2" onclick="primeInputCapture('ability2')">\${keyboardBinds.ability2.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Move Forward</span><button class="bind-input-btn" id="bk-up" onclick="primeInputCapture('up')">${keyboardBinds.up.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Move Left</span><button class="bind-input-btn" id="bk-left" onclick="primeInputCapture('left')">${keyboardBinds.left.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Move Backward</span><button class="bind-input-btn" id="bk-down" onclick="primeInputCapture('down')">${keyboardBinds.down.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Move Right</span><button class="bind-input-btn" id="bk-right" onclick="primeInputCapture('right')">${keyboardBinds.right.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Weapon Reload</span><button class="bind-input-btn" id="bk-reload" onclick="primeInputCapture('reload')">${keyboardBinds.reload.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Primary Fire</span><button class="bind-input-btn" id="bk-shoot" onclick="primeInputCapture('shoot')">${keyboardBinds.shoot === ' ' ? 'SPACE' : keyboardBinds.shoot.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Ability One</span><button class="bind-input-btn" id="bk-ability1" onclick="primeInputCapture('ability1')">${keyboardBinds.ability1.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Ability Two</span><button class="bind-input-btn" id="bk-ability2" onclick="primeInputCapture('ability2')">${keyboardBinds.ability2.toUpperCase()}</button></div>
             </div>
         `;
     } else if (profile === 'mobile') {
@@ -161,7 +160,7 @@ window.primeInputCapture = function(action) {
     if (activeListeningButtonNode) {
         activeListeningButtonNode.innerText = keyboardBinds[activeListeningButtonNode.dataset.action].toUpperCase();
     }
-    let btn = document.getElementById(`bk-\${action}`);
+    let btn = document.getElementById(`bk-${action}`);
     btn.innerText = "PRESS KEY...";
     btn.dataset.action = action;
     activeListeningButtonNode = btn;
@@ -248,7 +247,7 @@ function setupTouchInterfaceLoop() {
         
         let thumbNode = element.querySelector('.joystick-thumb-node');
         if (thumbNode) {
-            thumbNode.style.transform = `translate(\${Math.cos(angle) * distance}px, \${Math.sin(angle) * distance}px)`;
+            thumbNode.style.transform = `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px)`;
         }
 
         if (tracker === activeJoysticksTracker.left) {
@@ -313,7 +312,7 @@ function scanConsoleGamepadInputs() {
 }
 
 function checkClientWallCollision(x, y, radius) {
-    if (!localGrid) return false;
+    if (!localGrid || localGrid.length === 0) return false;
     const blocks = MAP_SIZE / GRID_SIZE;
     let startX = Math.max(0, Math.floor((x - radius) / GRID_SIZE));
     let endX = Math.min(blocks - 1, Math.floor((x + radius) / GRID_SIZE));
@@ -332,8 +331,8 @@ function checkClientWallCollision(x, y, radius) {
 }
 
 function bindLimits(type, limit) {
-    document.querySelectorAll(`.\${type}`).forEach(box => {
-        box.addEventListener('change', () => { if (document.querySelectorAll(`.\${type}:checked`).length > limit) box.checked = false; });
+    document.querySelectorAll(`.${type}`).forEach(box => {
+        box.addEventListener('change', () => { if (document.querySelectorAll(`.${type}:checked`).length > limit) box.checked = false; });
     });
 }
 bindLimits('wep-chk-init', 3); bindLimits('abil-chk-init', 2); bindLimits('wep-chk-mid', 3); bindLimits('abil-chk-mid', 2);
@@ -345,8 +344,8 @@ document.querySelectorAll('.abil-chk-init')[0].checked = true;
 document.querySelectorAll('.abil-chk-init')[3].checked = true; 
 
 function grabPack(suffix) {
-    let weapons = []; document.querySelectorAll(`.wep-chk-\${suffix}:checked`).forEach(el => weapons.push(el.value));
-    let abs = []; document.querySelectorAll(`.abil-chk-\${suffix}:checked`).forEach(el => abs.push(el.value));
+    let weapons = []; document.querySelectorAll(`.wep-chk-${suffix}:checked`).forEach(el => weapons.push(el.value));
+    let abs = []; document.querySelectorAll(`.abil-chk-${suffix}:checked`).forEach(el => abs.push(el.value));
     return { loadout: weapons, abilities: abs };
 }
 
@@ -376,12 +375,12 @@ socket.on('loadoutActionAck', () => { document.getElementById('midround-terminal
 socket.on('playerRespawned', (data) => { if (data.id === myId) { predictedPos.x = data.x; predictedPos.y = data.y; serverVerifiedPos.x = data.x; serverVerifiedPos.y = data.y; } });
 socket.on('matchStarted', (data) => { localGrid = data.map; localMapStyle = data.mapStyle; document.getElementById('midround-terminal').classList.add('hidden'); hasSetInitialPos = false; });
 socket.on('voteRegisteredUpdate', (votes) => {
-    document.getElementById('count-desert_outpost').innerText = `VOTES: \${votes.desert_outpost}`;
-    document.getElementById('count-urban_blocks').innerText = `VOTES: \${votes.urban_blocks}`;
+    document.getElementById('count-desert_outpost').innerText = `VOTES: ${votes.desert_outpost}`;
+    document.getElementById('count-urban_blocks').innerText = `VOTES: ${votes.urban_blocks}`;
 });
 
 socket.on('showLoadoutCustomizer', (data) => { 
-    document.getElementById('round-banner').innerText = `WAVE \${data.round || 1} UPGRADES`; 
+    document.getElementById('round-banner').innerText = `WAVE ${data.round || 1} UPGRADES`; 
     document.getElementById('midround-terminal').classList.remove('hidden'); 
 });
 
@@ -389,22 +388,22 @@ socket.on('serverTickUpdate', (data) => {
     serverGameState = data; if (data.mapStyle) localMapStyle = data.mapStyle;
     let min = Math.floor(data.matchTimer / 60).toString().padStart(2, '0');
     let sec = (data.matchTimer % 60).toString().padStart(2, '0');
-    document.getElementById('top-center-timer-box').innerText = `\${min}:\${sec}`;
+    document.getElementById('top-center-timer-box').innerText = `${min}:${sec}`;
     
     if (data.mode === 'TDM') {
-        document.getElementById('scores-panel').innerText = `MODE: TEAM DEATHMATCH || RED KILLS: \${data.scores.red} | BLUE KILLS: \${data.scores.blue}`;
+        document.getElementById('scores-panel').innerText = `MODE: TEAM DEATHMATCH || RED KILLS: ${data.scores.red} | BLUE KILLS: ${data.scores.blue}`;
     }
 
     if (myId && data.players[myId]) {
         let me = data.players[myId];
-        document.getElementById('active-wep-line').innerText = `LOADOUT: \${(me.loadout[me.activeWeaponIndex] || 'None').toUpperCase()}`;
-        document.getElementById('ammo-line').innerText = me.isReloading ? "AMMO: RELOADING..." : `MAG CAPACITY: \${me.ammo}`;
+        document.getElementById('active-wep-line').innerText = `LOADOUT: ${(me.loadout[me.activeWeaponIndex] || 'None').toUpperCase()}`;
+        document.getElementById('ammo-line').innerText = me.isReloading ? "AMMO: RELOADING..." : `MAG CAPACITY: ${me.ammo}`;
 
         let now = Date.now();
         let mDiff = Math.max(0, Math.ceil((me.ability1ReadyAt - now) / 1000));
         let mNode = document.getElementById('cd-m-status');
-        if (mDiff > 0) { mNode.innerText = `RECHARGING (\${mDiff}S)`; mNode.className = "cd-wait"; }
-        else { mNode.innerText = `READY [\${me.abilities[0].toUpperCase()}]`; mNode.className = "cd-ready"; }
+        if (mDiff > 0) { mNode.innerText = `RECHARGING (${mDiff}S)`; mNode.className = "cd-wait"; }
+        else { mNode.innerText = `READY [${me.abilities[0].toUpperCase()}]`; mNode.className = "cd-ready"; }
 
         if (!hasSetInitialPos) {
             predictedPos.x = me.x; predictedPos.y = me.y;
@@ -428,7 +427,7 @@ function executeHighPrecisionClientPrediction(currentFrameTime) {
         socket.emit('playerActionInput', inputState); 
 
         let me = serverGameState.players[myId];
-        if (me && me.hp > 0 && !me.controllingDecoyId) {
+        if (me && me.hp > 0) {
             let dx = 0; let dy = 0;
             if (inputState.w) dy -= 1; if (inputState.s) dy += 1;
             if (inputState.a) dx -= 1; if (inputState.d) dx += 1;
@@ -459,49 +458,47 @@ function executeHighPrecisionClientPrediction(currentFrameTime) {
 }
 requestAnimationFrame(executeHighPrecisionClientPrediction);
 
-let environmentDecorations = [];
-for(let i=0; i<45; i++) {
-    environmentDecorations.push({ x: Math.random()*MAP_SIZE, y: Math.random()*MAP_SIZE, size: Math.random()*25+10 });
-}
-
 function paintLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!myId || !serverGameState.players[myId]) { requestAnimationFrame(paintLoop); return; }
+    if (!myId || !serverGameState.players[myId]) { 
+        requestAnimationFrame(paintLoop); 
+        return; 
+    }
 
-    let target = serverGameState.players[myId];
     let camX = predictedPos.x; let camY = predictedPos.y;
-
     camera.x += (camX - camera.x) * 0.1; camera.y += (camY - camera.y) * 0.1;
     let oX = canvas.width / 2 - camera.x; let oY = canvas.height / 2 - camera.y;
-    let now = Date.now();
 
+    // Background Render Layer Loop
     if (localMapStyle === 'desert_outpost') {
         ctx.fillStyle = '#cc9966'; ctx.fillRect(0, 0, canvas.width, canvas.height); 
         ctx.fillStyle = '#dfb17b'; ctx.fillRect(oX, oY, MAP_SIZE, MAP_SIZE); 
-        ctx.fillStyle = '#c5935c';
-        environmentDecorations.forEach(d => { ctx.beginPath(); ctx.arc(d.x + oX, d.y + oY, d.size, 0, Math.PI, true); ctx.fill(); });
     } else {
         ctx.fillStyle = '#11121c'; ctx.fillRect(0, 0, canvas.width, canvas.height); 
         ctx.fillStyle = '#1e2030'; ctx.fillRect(oX, oY, MAP_SIZE, MAP_SIZE); 
-        ctx.fillStyle = '#161722';
-        environmentDecorations.forEach(d => { ctx.fillRect(d.x + oX, d.y + oY, d.size*1.5, d.size); });
     }
 
-    if (localGrid) {
+    // Grid Construction and Wall Rendering Matrix
+    if (localGrid && localGrid.length > 0) {
         for (let x = 0; x < localGrid.length; x++) {
             for (let y = 0; y < localGrid[x].length; y++) {
                 if (localGrid[x][y] === 1) {
-                    ctx.fillStyle = localMapStyle === 'desert_outpost' ? '#735135' : '#090a14';
+                    ctx.fillStyle = localMapStyle === 'desert_outpost' ? '#735135' : '#00f0ff';
                     ctx.fillRect(x * GRID_SIZE + oX, y * GRID_SIZE + oY, GRID_SIZE, GRID_SIZE);
+                } else {
+                    ctx.strokeStyle = localMapStyle === 'desert_outpost' ? 'rgba(115,81,53,0.12)' : 'rgba(0,240,255,0.04)';
+                    ctx.strokeRect(x * GRID_SIZE + oX, y * GRID_SIZE + oY, GRID_SIZE, GRID_SIZE);
                 }
             }
         }
     }
 
+    // Bullets Layer
     serverGameState.bullets.forEach(b => {
         ctx.fillStyle = b.color || '#fbbf24'; ctx.beginPath(); ctx.arc(b.x + oX, b.y + oY, b.radius || 4, 0, Math.PI * 2); ctx.fill();
     });
 
+    // Entities Layer
     Object.values(serverGameState.players).forEach(p => {
         if (p.hp <= 0) return;
         ctx.save(); 

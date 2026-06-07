@@ -147,6 +147,52 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/client.js"></script>
     <script>
+        // Inline code configuration utilities injection helper
+        function compileGridHTML(suffix) {
+            return `
+                <div class="category-header">Weapons Systems (Select Exactly 3)</div>
+                <div class="grid-layout">
+                    ${[
+                        { id: 'railgun', title: 'Railgun', desc: 'Instant high velocity straight beam line.', color: '#00ffff' },
+                        { id: 'heavy_revolver', title: 'Heavy Revolver', desc: 'High kinetic damage with massive recoil thrust.', color: '#f97316' },
+                        { id: 'bouncing_sniper', title: 'Bouncing Sniper', desc: 'High velocity round bouncing off obstacles up to 3 times.', color: '#a855f7' },
+                        { id: 'chaingun', title: 'AP Chaingun', desc: '60-round fire-rate monster that slows movement slightly.', color: '#fbbf24' },
+                        { id: 'burst_rifle', title: 'Burst Rifle', desc: 'High accuracy three-round burst.', color: '#38bdf8' },
+                        { id: 'bouncing_betty', title: 'Bouncing Betty', desc: 'Explosive shell detonating on wall or character presence.', color: '#ef4444' },
+                        { id: 'napalm', title: 'Napalm Launcher', desc: 'Lobs explosive magma shell leaving three pools.', color: '#ea580c' },
+                        { id: 'prox_mine', title: 'Proximity Mine', desc: 'Deploys a rooted cloaked landmine.', color: '#b91c1c' },
+                        { id: 'cluster_bomb', title: 'Cluster Bomb', desc: 'Splits into 6 fragment shards on wall contact.', color: '#f43f5e' },
+                        { id: 'micro_nuke', title: 'Micro-Nuke', desc: 'Slow moving payload yielding catastrophic blast radius.', color: '#22c55e' },
+                        { id: 'stun_baton', title: 'Stun Baton', desc: 'Short range defensive shock that freezes target speed.', color: '#eab308' },
+                        { id: 'plasma_rifle', title: 'Plasma Rifle', desc: 'Rapid energy bolts featuring home-in capabilities.', color: '#ec4899' },
+                        { id: 'shotgun', title: 'Shotgun Spread', desc: 'Fires horizontal grouping arc of 5 heavy pellets.', color: '#64748b' },
+                        { id: 'seeker', title: 'Seeker Missile', desc: 'Heavy rocket that pursues enemy operational signatures.', color: '#6366f1' },
+                        { id: 'sawblade', title: 'Sawblade Launcher', desc: 'Kinetic circular saw blade bouncing up to 5 times.', color: '#14b8a6' }
+                    ].map(w => `
+                        <div class="card"><label><input type="checkbox" class="wep-chk-${suffix}" value="${w.id}"> <span class="card-title" style="color: ${w.color};">${w.title}</span></label><div class="card-text">${w.desc}</div></div>
+                    `).join('')}
+                </div>
+                <div class="category-header ability-hdr">Abilities Grid Matrix (Select Exactly 2)</div>
+                <div class="grid-layout">
+                    ${[
+                        { id: 'blink', title: 'Blink Matrix', desc: 'Flash 120px down aiming heading vector.' },
+                        { id: 'slide', title: 'Power Slide', desc: 'High momentum forward acceleration push.' },
+                        { id: 'stim', title: 'Stim Injection', desc: 'Boost operational speed loop and heal 10 HP.' },
+                        { id: 'decoy', title: 'Decoy Clone Override', desc: 'Drive a full health clone while cloaking real frame for 10s.' },
+                        { id: 'shield', title: 'Deflect Shield', desc: 'Absorbs next weapon impact damage burst.' },
+                        { id: 'smoke', title: 'Smoke Screen', desc: 'Deploys an obscurement field.' },
+                        { id: 'pulse', title: 'Radar Pulse', desc: 'Highlights all match structural coordinates.' },
+                        { id: 'gravity', title: 'Gravity Well', desc: 'Vortex pulling in contrasting player layers.' },
+                        { id: 'overdrive', title: 'Fire Overdrive', desc: 'Boost weapon loading operational loop cycles.' },
+                        { id: 'teleport', title: 'Quantum Recall', desc: 'Recall to coordinate location from 3s ago.' },
+                        { id: 'heal', title: 'Repair Matrix', desc: 'Instantly restore 40 framework points.' },
+                        { id: 'cloak', title: 'Stealth Cloak', desc: 'Conceal player model framework completely.' }
+                    ].map(a => `
+                        <div class="card"><label><input type="checkbox" class="abil-chk-${suffix}" value="${a.id}"> <span class="card-title" style="color:#00ff66;">${a.title}</span></label><div class="card-text">${a.desc}</div></div>
+                    `).join('')}
+                </div>
+            `;
+        }
         document.getElementById('midround-grid-injection-point').innerHTML = compileGridHTML('mid');
     </script>
 </body>

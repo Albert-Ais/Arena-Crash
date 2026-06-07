@@ -11,7 +11,7 @@ const GRID_SIZE = 40;
 const BLOCKS_COUNT = MAP_SIZE / GRID_SIZE;
 
 let mapGrid = Array(BLOCKS_COUNT).fill(null).map(() => Array(BLOCKS_COUNT).fill(0));
-for (let i = 0; i < 40; i++) {
+for (let i = 0; i < 45; i++) {
     let rx = Math.floor(Math.random() * BLOCKS_COUNT);
     let ry = Math.floor(Math.random() * BLOCKS_COUNT);
     if (rx > 3 && rx < BLOCKS_COUNT - 4 && ry > 3 && ry < BLOCKS_COUNT - 4) {
@@ -31,11 +31,8 @@ let gameState = {
     mapStyle: 'desert_outpost'
 };
 
-let registeredVotesMap = { desert_outpost: 0, urban_blocks: 0 };
-let socketsVotedTracker = new Set();
-
 function checkServerWallCollision(x, y, radius) {
-    const bufferRadius = radius - 0.5; // Padding skin prevents rounding friction stutters
+    const bufferRadius = radius - 0.5; // Padding skin buffer eliminates fractional rounding jitter
     let startX = Math.max(0, Math.floor((x - bufferRadius) / GRID_SIZE));
     let endX = Math.min(BLOCKS_COUNT - 1, Math.floor((x + bufferRadius) / GRID_SIZE));
     let startY = Math.max(0, Math.floor((y - bufferRadius) / GRID_SIZE));
@@ -74,6 +71,7 @@ io.on('connection', (socket) => {
         lastInputState: { w: false, a: false, s: false, d: false, angle: 0 }
     };
 
+    // Broadcast the full system map layout explicitly to the client upon initialization handshake
     socket.emit('roomJoined', { map: mapGrid, mapStyle: gameState.mapStyle });
 
     socket.on('playerActionInput', (input) => {
@@ -168,4 +166,4 @@ setInterval(() => {
 }, 1000 / 60);
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => { console.log(`NEON APEX ENGINE LIVE ON PORT // \${PORT}`); });
+http.listen(PORT, () => { console.log(`NEON APEX ENGINE LIVE ON PORT // ${PORT}`); });
