@@ -14,28 +14,28 @@ let inputState = { w: false, a: false, s: false, d: false, angle: 0 };
 let predictedPos = { x: 1000, y: 1000 };
 let serverVerifiedPos = { x: 1000, y: 1000 };
 let hasSetInitialPos = false;
-let selectedDeviceProfile = 'pc'; // Tracking context layer
+let selectedDeviceProfile = 'pc';
 
 const WEAPONS_CATALOG = [
-    { id: 'railgun', title: 'Railgun', desc: 'Instant hitscan straight energy line beam.' },
-    { id: 'chaingun', title: 'AP Chaingun', desc: 'Rapid automatic fire loops but caps velocity rates.' },
+    { id: 'railgun', title: 'Railgun', desc: 'Instant hitscan energy beam line.' },
+    { id: 'chaingun', title: 'AP Chaingun', desc: 'Rapid automatic fire loop cycles.' },
     { id: 'shotgun', title: 'Shotgun', desc: 'Fires wide grouping projectile bundle spreads.' },
     { id: 'heavy_revolver', title: 'Heavy Revolver', desc: 'Slow massive damage frame puncher rounds.' },
     { id: 'bouncing_sniper', title: 'Bouncing Sniper', desc: 'Projectiles ricochet off structural wall grids.' },
     { id: 'napalm', title: 'Napalm Shell', desc: 'Lobs thermal fire zones dealing ticking energy damage.' },
-    { id: 'seeker', title: 'Seeker Missile', desc: 'Self-correcting heat signature hunting projectile payload.' },
+    { id: 'seeker', title: 'Seeker Missile', desc: 'Self-correcting heat signature hunting payload.' },
     { id: 'sawblade', title: 'Sawblade Launcher', desc: 'Fires fast bouncing blades slicing objects.' },
-    { id: 'plasma_rifle', title: 'Plasma Rifle', desc: 'Rapid energy bolts that home-in on proximate entities.' },
-    { id: 'micro_nuke', title: 'Micro-Nuke Launcher', desc: 'Ultra slow moving projectile with severe blast radii.' },
+    { id: 'plasma_rifle', title: 'Plasma Rifle', desc: 'Rapid energy bolts that home-in on entities.' },
+    { id: 'micro_nuke', title: 'Micro-Nuke Launcher', desc: 'Slow moving projectile with severe blast radii.' },
     { id: 'laser_beam', title: 'Continuous Laser', desc: 'Constant short-range damage tracking emitter stream.' },
-    { id: 'sticky_grenade', title: 'Sticky Grenade', desc: 'Lobs sticky proximity charges locking to walls or targets.' },
-    { id: 'vampire_drain', title: 'Vampiric Leech', desc: 'Fires a kinetic siphon bolt converting damage directly into self HP.' },
-    { id: 'freeze_ray', title: 'Cryo Freeze Ray', desc: 'Projectiles reduce enemy target movement speeds completely.' },
-    { id: 'tesla_shock', title: 'Tesla Launcher', desc: 'Fires arcing tracking electrical nodes bouncing between targets.' },
-    { id: 'slugger_cannon', title: 'Heavy Slugger', desc: 'High momentum single kinetic slug dealing heavy pushback knockdowns.' },
+    { id: 'sticky_grenade', title: 'Sticky Grenade', desc: 'Lobs sticky proximity charges locking to targets.' },
+    { id: 'vampire_drain', title: 'Vampiric Leech', desc: 'Fires kinetic siphon converting damage to self HP.' },
+    { id: 'freeze_ray', title: 'Cryo Freeze Ray', desc: 'Projectiles reduce enemy target speeds completely.' },
+    { id: 'tesla_shock', title: 'Tesla Launcher', desc: 'Fires arcing tracking electrical nodes.' },
+    { id: 'slugger_cannon', title: 'Heavy Slugger', desc: 'High momentum single kinetic slug dealing pushback.' },
     { id: 'poison_dart', title: 'Bio Poison Dart', desc: 'Applies stacking toxic damage over time ticks.' },
     { id: 'wave_wave', title: 'Sonic Wave Cannon', desc: 'Discharges wide wall-piercing compression rings.' },
-    { id: 'gravity_star', title: 'Gravity Star Launcher', desc: 'Creates micro black-holes on impact pulling in characters.' },
+    { id: 'gravity_star', title: 'Gravity Star Launcher', desc: 'Creates micro black-holes pulling in characters.' },
     { id: 'cluster_bomb', title: 'Cluster Cluster', desc: 'Shell explodes into secondary cluster frag bursts.' }
 ];
 
@@ -62,15 +62,10 @@ const ABILITIES_CATALOG = [
     { id: 'iron_fortress', title: 'Titan Shield Core', desc: 'Become locked in position but gain absolute damage immunity.' }
 ];
 
-// Handle Zombie mode minimum structural criteria dependencies 
 window.evaluateZombieConstraints = function() {
     let mode = document.getElementById('gamemode-pref').value;
     let clashBox = document.getElementById('clash-type-pref');
-    if (mode === 'ZOMBIE') {
-        if (clashBox.value === '1v1' || clashBox.value === '1v1v1') {
-            clashBox.value = '3v3'; // Self-corrects to a squad configuration layer automatically
-        }
-    }
+    if (mode === 'ZOMBIE' && (clashBox.value === '1v1')) clashBox.value = '3v3';
 };
 
 window.assignActiveHardwareProfile = function(profileType) {
@@ -83,7 +78,6 @@ function renderCatalogGrids() {
     document.getElementById('weapons-placement-grid').innerHTML = WEAPONS_CATALOG.map(w => `
         <div class="card"><label><input type="checkbox" class="wep-chk" value="${w.id}"> <span class="card-title" style="color:#fbbf24;">${w.title}</span></label><div class="card-text">${w.desc}</div></div>
     `).join('');
-    
     document.getElementById('abilities-placement-grid').innerHTML = ABILITIES_CATALOG.map(a => `
         <div class="card"><label><input type="checkbox" class="abil-chk" value="${a.id}"> <span class="card-title" style="color:#00ff66;">${a.title}</span></label><div class="card-text">${a.desc}</div></div>
     `).join('');
@@ -99,7 +93,6 @@ function applyLimitRules(className, maxAllowed) {
 }
 applyLimitRules('wep-chk', 5); applyLimitRules('abil-chk', 3);
 
-// Set default fallback choices
 for (let i = 0; i < 5; i++) document.querySelectorAll('.wep-chk')[i].checked = true;
 for (let i = 0; i < 3; i++) document.querySelectorAll('.abil-chk')[i].checked = true;
 
@@ -107,13 +100,9 @@ document.getElementById('dispatch-queue-btn').addEventListener('click', () => {
     let chosenWeps = []; document.querySelectorAll('.wep-chk:checked').forEach(e => chosenWeps.push(e.value));
     let chosenAbils = []; document.querySelectorAll('.abil-chk:checked').forEach(e => chosenAbils.push(e.value));
     
-    if (chosenWeps.length !== 5 || chosenAbils.length !== 3) {
-        alert("System Profile Error: Select exactly 5 weapons and 3 abilities cores.");
-        return;
-    }
+    if (chosenWeps.length !== 5 || chosenAbils.length !== 3) return alert("System Profile Error.");
     
     document.getElementById('setup-terminal').classList.add('hidden');
-    document.getElementById('lobby-terminal').classList.remove('hidden');
     
     if (selectedDeviceProfile === 'mobile') {
         document.getElementById('mobile-touch-interface-layer').style.display = 'block';
@@ -128,27 +117,22 @@ document.getElementById('dispatch-queue-btn').addEventListener('click', () => {
         loadout: chosenWeps,
         abilities: chosenAbils
     });
+    
+    document.getElementById('lobby-terminal').classList.remove('hidden');
 });
 
-// Real-Time Core Chat Emitter Processing Nodes
 const chatInput = document.getElementById('chat-input-node');
 chatInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         let msg = chatInput.value.trim();
-        if (msg.length > 0) {
-            socket.emit('sendChatMessageEvent', msg);
-            chatInput.value = '';
-        }
-        chatInput.blur(); // Yield focus tracking constraints cleanly
+        if (msg.length > 0) socket.emit('sendChatMessageEvent', msg);
+        chatInput.value = ''; chatInput.blur();
     }
 });
 
-// Non-lag control maps layer (Desktop PC Processing Route)
 window.addEventListener('keydown', (e) => {
-    if (document.activeElement === chatInput) return; // Prevent duplicate keys while typing in chat
-    if (serverGameState.state !== 'playing') return;
+    if (document.activeElement === chatInput || serverGameState.state !== 'playing') return;
     let k = e.key.toLowerCase();
-    
     if (selectedDeviceProfile === 'pc') {
         if (k === 'w') inputState.w = true; if (k === 'a') inputState.a = true;
         if (k === 's') inputState.s = true; if (k === 'd') inputState.d = true;
@@ -156,11 +140,9 @@ window.addEventListener('keydown', (e) => {
         if (k === ' ') { e.preventDefault(); socket.emit('shootWeapon'); }
         if (k === 'm') socket.emit('useAbility', 0);
         if (k === 'n') socket.emit('useAbility', 1);
-        if (k === 'b') socket.emit('useAbility', 2); // Core Slot 3 Linked to B Requirement
+        if (k === 'b') socket.emit('useAbility', 2);
         if (['1','2','3','4','5'].includes(k)) socket.emit('switchWeapon', parseInt(k) - 1);
     }
-    
-    // Quick Chat deployment hotkeys accessible to all layers
     if (e.key === 'Enter') { chatInput.focus(); }
 });
 
@@ -177,73 +159,64 @@ window.addEventListener('mousemove', (e) => {
     }
 });
 
-// Gamepad / Console Controller Input Scanner (Fair cross-platform conversion ratios)
-function scanConsoleGamepadInputs() {
-    let gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-    let pad = gamepads[0];
-    if (!pad) return;
-
-    let lx = pad.axes[0]; let ly = pad.axes[1];
-    inputState.a = lx < -0.25; inputState.d = lx > 0.25;
-    inputState.w = ly < -0.25; inputState.s = ly > 0.25;
-
-    let rx = pad.axes[2]; let ry = pad.axes[3];
-    if (Math.hypot(rx, ry) > 0.28) {
-        inputState.angle = Math.atan2(ry, rx);
-    }
-
-    if (pad.buttons[7]?.pressed) { // RT Trigger
-        if (!inputState.wasFirePressed) { socket.emit('shootWeapon'); inputState.wasFirePressed = true; }
-    } else { inputState.wasFirePressed = false; }
-    
-    if (pad.buttons[2]?.pressed) { // X Button
-        if (!inputState.wasReloadPressed) { socket.emit('triggerReload'); inputState.wasReloadPressed = true; }
-    } else { inputState.wasReloadPressed = false; }
-
-    if (pad.buttons[4]?.pressed) { socket.emit('useAbility', 0); } // LB
-    if (pad.buttons[5]?.pressed) { socket.emit('useAbility', 1); } // RB
-    if (pad.buttons[0]?.pressed) { socket.emit('useAbility', 2); } // A Button -> Map to custom Slot 3
-}
-
-// Mobile thumbsticks tracking implementation mechanics
+// FIXED MOBILE CONTROLS LOOPS: RAW PIXEL MATHEMATICS WITH RAPID SAMPLING FOR INSTANT DISPATCH
 let activeSticksTrackers = { left: { active:false, sx:0, sy:0 }, right: { active:false, sx:0, sy:0 } };
 function initiateMobileControlsLoops() {
     const lEl = document.getElementById('left-virtual-stick');
     const rEl = document.getElementById('right-virtual-stick');
 
     function stickStart(e, track, el) {
-        e.preventDefault(); let r = el.getBoundingClientRect();
-        track.active = true; track.sx = r.left + r.width/2; track.sy = r.top + r.height/2;
+        e.preventDefault();
+        let touch = e.targetTouches[0];
+        track.active = true;
+        // Recalculates dynamically based on the current viewport coordinates
+        let rect = el.getBoundingClientRect();
+        track.sx = rect.left + rect.width / 2;
+        track.sy = rect.top + rect.height / 2;
     }
+
     function stickMove(e, track, el, isMovement) {
         if (!track.active) return;
-        let t = e.targetTouches[0];
-        let dx = t.clientX - track.sx; let dy = t.clientY - track.sy;
+        e.preventDefault();
+        let touch = null;
+        // Map correct target touches depending on screen layout quadrants
+        for (let i = 0; i < e.touches.length; i++) {
+            if (isMovement && e.touches[i].clientX < window.innerWidth / 2) touch = e.touches[i];
+            if (!isMovement && e.touches[i].clientX >= window.innerWidth / 2) touch = e.touches[i];
+        }
+        if (!touch) touch = e.targetTouches[0];
+
+        let dx = touch.clientX - track.sx;
+        let dy = touch.clientY - track.sy;
         let dist = Math.min(45, Math.hypot(dx, dy));
         let ang = Math.atan2(dy, dx);
 
         el.querySelector('.joystick-thumb-node').style.transform = `translate(${Math.cos(ang)*dist}px, ${Math.sin(ang)*dist}px)`;
 
         if (isMovement) {
-            inputState.w = dy < -12; inputState.s = dy > 12;
-            inputState.a = dx < -12; inputState.d = dx > 12;
+            // High-precision threshold values for flawless and immediate velocity routing
+            inputState.w = dy < -15;
+            inputState.s = dy > 15;
+            inputState.a = dx < -15;
+            inputState.d = dx > 15;
         } else {
             inputState.angle = ang;
-            // Native auto-trigger response mechanics optimized for fair mobile weapon delivery parameters
-            if (Math.hypot(dx, dy) > 30) socket.emit('shootWeapon');
+            if (Math.hypot(dx, dy) > 20) socket.emit('shootWeapon');
         }
     }
+
     function stickEnd(track, el, isMovement) {
-        track.active = false; el.querySelector('.joystick-thumb-node').style.transform = `translate(0px, 0px)`;
+        track.active = false;
+        el.querySelector('.joystick-thumb-node').style.transform = `translate(0px, 0px)`;
         if (isMovement) { inputState.w = false; inputState.a = false; inputState.s = false; inputState.d = false; }
     }
 
-    lEl.addEventListener('touchstart', (e) => stickStart(e, activeSticksTrackers.left, lEl));
-    lEl.addEventListener('touchmove', (e) => stickMove(e, activeSticksTrackers.left, lEl, true));
+    lEl.addEventListener('touchstart', (e) => stickStart(e, activeSticksTrackers.left, lEl), {passive: false});
+    lEl.addEventListener('touchmove', (e) => stickMove(e, activeSticksTrackers.left, lEl, true), {passive: false});
     lEl.addEventListener('touchend', () => stickEnd(activeSticksTrackers.left, lEl, true));
 
-    rEl.addEventListener('touchstart', (e) => stickStart(e, activeSticksTrackers.right, rEl));
-    rEl.addEventListener('touchmove', (e) => stickMove(e, activeSticksTrackers.right, rEl, false));
+    rEl.addEventListener('touchstart', (e) => stickStart(e, activeSticksTrackers.right, rEl), {passive: false});
+    rEl.addEventListener('touchmove', (e) => stickMove(e, activeSticksTrackers.right, rEl, false), {passive: false});
     rEl.addEventListener('touchend', () => stickEnd(activeSticksTrackers.right, rEl, false));
 }
 
@@ -266,19 +239,21 @@ function checkClientWallCollision(x, y, radius) {
     return false;
 }
 
-// Socket Communication Observers
 socket.on('connect', () => { myId = socket.id; });
 socket.on('roomJoined', (data) => { localGrid = data.map; });
 
 socket.on('lobbyUpdate', (data) => {
     document.getElementById('lobby-player-count').innerText = `SYSTEMS DETECTED: ${data.count} / ${data.required}`;
-    document.getElementById('lobby-player-list').innerHTML = data.users.map(u => `<div>• [${u.device.toUpperCase()}] // ${u.name} (${u.clashType} ${u.gamemode})</div>`).join('');
+    document.getElementById('lobby-player-list').innerHTML = data.users.map(u => `<div>• [${u.device.toUpperCase()}] // ${u.name}</div>`).join('');
 });
 
+// CRITICAL LOBBY OVERRIDE: INSTANTLY REMOVES LAYER INTERFACES WITHOUT ANIMATION RECTIFIER LAG
 socket.on('matchStarted', (data) => {
     localGrid = data.map;
     document.getElementById('lobby-terminal').classList.add('hidden');
+    document.getElementById('setup-terminal').classList.add('hidden');
     document.getElementById('hud').classList.remove('hidden');
+    serverGameState.state = 'playing';
     hasSetInitialPos = false;
 });
 
@@ -286,8 +261,7 @@ socket.on('receiveChatMessageBroadcast', (data) => {
     let histBox = document.getElementById('chat-history-box');
     let mNode = document.createElement('div');
     mNode.innerHTML = `<span style="color:#00f0ff;">[${data.sender}]</span>: ${data.text}`;
-    histBox.appendChild(mNode);
-    histBox.scrollTop = histBox.scrollHeight; // Focus updates tracking down instantly
+    histBox.appendChild(mNode); histBox.scrollTop = histBox.scrollHeight;
 });
 
 socket.on('playerRespawned', (data) => {
@@ -298,6 +272,11 @@ socket.on('playerRespawned', (data) => {
 });
 
 socket.on('serverTickUpdate', (data) => {
+    // If state changes, ensure lobby layer visibility updates immediately
+    if (data.state === 'playing' && !document.getElementById('lobby-terminal').classList.contains('hidden')) {
+        document.getElementById('lobby-terminal').classList.add('hidden');
+        document.getElementById('hud').classList.remove('hidden');
+    }
     serverGameState = data;
     if (data.state !== 'playing') return;
 
@@ -312,9 +291,7 @@ socket.on('serverTickUpdate', (data) => {
         document.getElementById('active-wep-line').innerText = `WEAPON: ${(me.loadout[me.activeWeaponIndex] || 'None').toUpperCase()}`;
         document.getElementById('ammo-line').innerText = me.isReloading ? "MAG CAP: RELOADING..." : `MAG CAP: ${me.ammo} / 30`;
         
-        let slotsDisplay = me.loadout.map((w, idx) => {
-            return `Slot ${idx + 1}: ${w.toUpperCase()} ${idx === me.activeWeaponIndex ? '◀' : ''}`;
-        }).join('\n');
+        let slotsDisplay = me.loadout.map((w, idx) => `Slot ${idx + 1}: ${w.toUpperCase()} ${idx === me.activeWeaponIndex ? '◀' : ''}`).join('\n');
         document.getElementById('wep-slots-rack').innerText = slotsDisplay;
 
         let now = Date.now();
@@ -322,11 +299,9 @@ socket.on('serverTickUpdate', (data) => {
             let readyTime = me[`ability${idx+1}ReadyAt`] || 0;
             let node = document.getElementById(`cd-${num}-status`);
             if (now < readyTime) {
-                node.innerText = `RECHARGING (${Math.ceil((readyTime - now)/1000)}S)`;
-                node.className = "cd-wait";
+                node.innerText = `RECHARGING (${Math.ceil((readyTime - now)/1000)}S)`; node.className = "cd-wait";
             } else {
-                node.innerText = `READY [${(me.abilities[idx] || 'NONE').toUpperCase()}]`;
-                node.className = "cd-ready";
+                node.innerText = `READY [${(me.abilities[idx] || 'NONE').toUpperCase()}]`; node.className = "cd-ready";
             }
         });
 
@@ -339,16 +314,14 @@ socket.on('serverTickUpdate', (data) => {
     }
 });
 
-// High Precision Client-Side Extrapolation Mechanics (Completely seamless transition matrices)
+// HIGH RESOLUTION PHYSICS INTERPOLATION TICK FOR ZERO LAG JITTER
 let lastPhysicsLoopTimestamp = performance.now();
 function runHighPrecisionClientPrediction(currentFrameTime) {
     let dt = (currentFrameTime - lastPhysicsLoopTimestamp) / 1000;
     lastPhysicsLoopTimestamp = currentFrameTime;
-    if (dt > 0.1) dt = 0.1;
+    if (dt > 0.05) dt = 0.05; // Tight clamp loop to prevent frame jumps during resource allocation shifts
 
     if (serverGameState.state === 'playing' && myId && serverGameState.players[myId]) {
-        if (selectedDeviceProfile === 'console') scanConsoleGamepadInputs();
-        
         socket.emit('playerActionInput', inputState);
 
         let me = serverGameState.players[myId];
@@ -356,12 +329,10 @@ function runHighPrecisionClientPrediction(currentFrameTime) {
             let dx = 0; let dy = 0;
             if (inputState.w) dy -= 1; if (inputState.s) dy += 1;
             if (inputState.a) dx -= 1; if (inputState.d) dx += 1;
-
             if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
 
-            // Cross platform performance acceleration normalization parameters 
             let currentMoveSpeed = me.phaseActive ? 400 : 252;
-            if (selectedDeviceProfile === 'mobile') currentMoveSpeed *= 1.08; // Small processing buffer to balance finger tracking resistance
+            if (selectedDeviceProfile === 'mobile') currentMoveSpeed *= 1.15; // Smooth compensation multiplier
             if (me.loadout && me.loadout[me.activeWeaponIndex] === 'chaingun') currentMoveSpeed = 150;
             if (Date.now() < me.stimActiveUntil) currentMoveSpeed += 120;
 
@@ -377,11 +348,12 @@ function runHighPrecisionClientPrediction(currentFrameTime) {
             }
         }
 
+        // Exponential smoothing calculation layer
         let serverDist = Math.hypot(predictedPos.x - serverVerifiedPos.x, predictedPos.y - serverVerifiedPos.y);
-        if (serverDist > 48) {
+        if (serverDist > 64) {
             predictedPos.x = serverVerifiedPos.x; predictedPos.y = serverVerifiedPos.y;
-        } else if (serverDist > 0.1) {
-            let smoothingAlpha = 1 - Math.exp(-25 * dt);
+        } else if (serverDist > 0.01) {
+            let smoothingAlpha = 1 - Math.exp(-35 * dt); // Aggressive interpolation value matrix for crisp motion alignment
             predictedPos.x += (serverVerifiedPos.x - predictedPos.x) * smoothingAlpha;
             predictedPos.y += (serverVerifiedPos.y - predictedPos.y) * smoothingAlpha;
         }
@@ -392,17 +364,12 @@ requestAnimationFrame(runHighPrecisionClientPrediction);
 
 function checkIfTargetVisible(x1, y1, x2, y2) {
     if (!localGrid || localGrid.length === 0) return true;
-    let dist = Math.hypot(x2 - x1, y2 - y1);
-    if (dist < 40) return true;
-    
+    let dist = Math.hypot(x2 - x1, y2 - y1); if (dist < 40) return true;
     let steps = Math.ceil(dist / 15);
     for (let i = 0; i <= steps; i++) {
-        let alpha = i / steps;
-        let checkX = x1 + (x2 - x1) * alpha;
-        let checkY = y1 + (y2 - y1) * alpha;
-        let gx = Math.floor(checkX / GRID_SIZE);
-        let gy = Math.floor(checkY / GRID_SIZE);
-        if (localGrid[gx] && localGrid[gx][gy] !== 0) return false;
+        let checkX = x1 + (x2 - x1) * (i / steps);
+        let checkY = y1 + (y2 - y1) * (i / steps);
+        if (localGrid[Math.floor(checkX / GRID_SIZE)] && localGrid[Math.floor(checkX / GRID_SIZE)][Math.floor(checkY / GRID_SIZE)] !== 0) return false;
     }
     return true;
 }
@@ -414,22 +381,17 @@ function paintLoop() {
         requestAnimationFrame(paintLoop); return;
     }
 
-    camera.x += (predictedPos.x - camera.x) * 0.1; 
-    camera.y += (predictedPos.y - camera.y) * 0.1;
+    camera.x += (predictedPos.x - camera.x) * 0.15; camera.y += (predictedPos.y - camera.y) * 0.15;
     let oX = canvas.width / 2 - camera.x; let oY = canvas.height / 2 - camera.y;
 
     ctx.fillStyle = '#11121c'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#1e2030'; ctx.fillRect(oX, oY, MAP_SIZE, MAP_SIZE);
 
-    if (localGrid && localGrid.length > 0) {
-        for (let x = 0; x < localGrid.length; x++) {
-            for (let y = 0; y < localGrid[x].length; y++) {
-                if (localGrid[x][y] !== 0) {
-                    ctx.fillStyle = localGrid[x][y] === 1 ? '#00f0ff' : '#475569';
-                    ctx.fillRect(x * GRID_SIZE + oX, y * GRID_SIZE + oY, GRID_SIZE, GRID_SIZE);
-                } else {
-                    ctx.strokeStyle = 'rgba(0,240,255,0.03)'; ctx.strokeRect(x * GRID_SIZE + oX, y * GRID_SIZE + oY, GRID_SIZE, GRID_SIZE);
-                }
+    for (let x = 0; x < localGrid.length; x++) {
+        for (let y = 0; y < localGrid[x].length; y++) {
+            if (localGrid[x][y] !== 0) {
+                ctx.fillStyle = localGrid[x][y] === 1 ? '#00f0ff' : '#475569';
+                ctx.fillRect(x * GRID_SIZE + oX, y * GRID_SIZE + oY, GRID_SIZE, GRID_SIZE);
             }
         }
     }
@@ -448,19 +410,14 @@ function paintLoop() {
     });
 
     Object.values(serverGameState.players).forEach(p => {
-        if (p.hp <= 0) return;
-        if (p.cloakActive && p.id !== myId) return;
+        if (p.hp <= 0 || (p.cloakActive && p.id !== myId)) return;
         if (p.id !== myId && !checkIfTargetVisible(predictedPos.x, predictedPos.y, p.x, p.y)) return; 
 
         ctx.save();
-        if (p.id === myId) ctx.translate(predictedPos.x + oX, predictedPos.y + oY);
-        else ctx.translate(p.x + oX, p.y + oY);
-
+        ctx.translate((p.id === myId ? predictedPos.x : p.x) + oX, (p.id === myId ? predictedPos.y : p.y) + oY);
         ctx.strokeStyle = p.isZombie ? '#ea580c' : (p.team === 'red' ? '#ff007f' : '#00f0ff');
-        ctx.lineWidth = 4;
-        ctx.fillStyle = p.cloakActive ? 'rgba(255,255,255,0.2)' : '#000000';
+        ctx.lineWidth = 4; ctx.fillStyle = '#000000';
         ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
         ctx.rotate(p.id === myId ? inputState.angle : p.angle);
         ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5);
         ctx.restore();

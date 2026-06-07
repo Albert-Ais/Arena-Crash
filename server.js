@@ -7,7 +7,6 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
 
 const MAP_SIZE = 2000; const GRID_SIZE = 40; const BLOCKS_COUNT = MAP_SIZE / GRID_SIZE;
-
 let mapGrid = Array(BLOCKS_COUNT).fill(null).map(() => Array(BLOCKS_COUNT).fill(0));
 
 function buildDynamicWorldMatrices() {
@@ -37,12 +36,11 @@ let gameState = { players: {}, bullets: [], fields: [], scores: { red: 0, blue: 
 let matchmakingQueue = [];
 
 function getRequiredPlayersCount(clashType, gamemode) {
-    if (gamemode === 'ZOMBIE') return Math.max(3, 3); // Override constraint parameters securely
+    if (gamemode === 'ZOMBIE') return 3;
     if (clashType === '1v1') return 2;
     if (clashType === '2v2') return 4;
     if (clashType === '3v3') return 6;
-    if (clashType === '1v1v1') return 3;
-    return 4; // FFA Default boundary threshold
+    return 4;
 }
 
 function checkServerWallCollision(x, y, radius) {
@@ -82,30 +80,28 @@ io.on('connection', (socket) => {
 
         let needed = getRequiredPlayersCount(data.clashType, data.gamemode);
 
+        // INSTANT STATE TRANSITION ACTION BUFFER: TRANSFERS OBJECT KEYS IMMEDIATELY WITHOUT DELAY TICK COOLDOWN
         if (matchmakingQueue.length >= needed && gameState.state === 'lobby') {
+            gameState.state = 'playing'; // Change game state instantly before firing connection events
             matchmakingQueue.forEach(p => { gameState.players[p.id] = p; });
             
-            // Zombie Infection Archetype Matrix Formulation Loop
             if (gameState.gamemode === 'ZOMBIE') {
                 let keys = Object.keys(gameState.players);
                 let patientZero = keys[Math.floor(Math.random() * keys.length)];
-                gameState.players[patientZero].isZombie = true;
-                gameState.players[patientZero].hp = 240; // Augmented status mechanics
+                gameState.players[patientZero].isZombie = true; gameState.players[patientZero].hp = 240;
             }
 
-            gameState.state = 'playing';
             matchmakingQueue = [];
             io.emit('matchStarted', { map: mapGrid });
         } else {
-            let list = matchmakingQueue.map(p => ({ name: p.name, device: p.device, clashType: p.clashType, gamemode: p.gamemode }));
+            let list = matchmakingQueue.map(p => ({ name: p.name, device: p.device }));
             io.emit('lobbyUpdate', { count: matchmakingQueue.length, required: needed, users: list });
         }
     });
 
     socket.on('sendChatMessageEvent', (text) => {
         let p = gameState.players[socket.id];
-        let senderName = p ? p.name : "System";
-        io.emit('receiveChatMessageBroadcast', { sender: senderName, text: text.replace(/<[^>]*>/g, '') });
+        io.emit('receiveChatMessageBroadcast', { sender: p ? p.name : "System", text: text.replace(/<[^>]*>/g, '') });
     });
 
     socket.on('playerActionInput', (input) => {
@@ -135,57 +131,41 @@ io.on('connection', (socket) => {
         let baseBullet = { x: p.x + Math.cos(pAngle)*22, y: p.y + Math.sin(pAngle)*22, vx: Math.cos(pAngle)*650, vy: Math.sin(pAngle)*650, radius: 4, color: '#f59e0b', ownerId: p.id, life: 2.0, type: 'standard', dmg: 15 };
 
         if (type === 'railgun') {
-            baseBullet.vx *= 2.5; baseBullet.dmg = 35; baseBullet.radius = 2;
-            gameState.bullets.push(baseBullet);
+            baseBullet.vx *= 2.5; baseBullet.dmg = 35; baseBullet.radius = 2; gameState.bullets.push(baseBullet);
         } else if (type === 'shotgun') {
             for (let i = -2; i <= 2; i++) {
                 let dev = pAngle + (i * 0.12);
                 gameState.bullets.push({ ...baseBullet, vx: Math.cos(dev)*550, vy: Math.sin(dev)*550, dmg: 10, life: 0.8 });
             }
         } else if (type === 'heavy_revolver') {
-            baseBullet.dmg = 45; baseBullet.vx *= 0.8; baseBullet.radius = 6;
-            gameState.bullets.push(baseBullet);
+            baseBullet.dmg = 45; baseBullet.vx *= 0.8; baseBullet.radius = 6; gameState.bullets.push(baseBullet);
         } else if (type === 'bouncing_sniper' || type === 'sawblade') {
-            baseBullet.type = 'bounce'; baseBullet.bounces = type === 'sawblade' ? 5 : 3; baseBullet.vx *= 1.2;
-            gameState.bullets.push(baseBullet);
+            baseBullet.type = 'bounce'; baseBullet.bounces = type === 'sawblade' ? 5 : 3; baseBullet.vx *= 1.2; gameState.bullets.push(baseBullet);
         } else if (type === 'napalm') {
-            baseBullet.type = 'napalm_lob'; baseBullet.life = 1.0; baseBullet.vx *= 0.6; baseBullet.vy *= 0.6;
-            gameState.bullets.push(baseBullet);
+            baseBullet.type = 'napalm_lob'; baseBullet.life = 1.0; baseBullet.vx *= 0.6; baseBullet.vy *= 0.6; gameState.bullets.push(baseBullet);
         } else if (type === 'seeker' || type === 'plasma_rifle') {
-            baseBullet.type = 'homing'; baseBullet.vx *= 0.7; baseBullet.vy *= 0.7; baseBullet.life = 3.5;
-            gameState.bullets.push(baseBullet);
+            baseBullet.type = 'homing'; baseBullet.vx *= 0.7; baseBullet.vy *= 0.7; baseBullet.life = 3.5; gameState.bullets.push(baseBullet);
         } else if (type === 'freeze_ray') {
-            baseBullet.type = 'freeze'; baseBullet.color = '#38bdf8'; baseBullet.dmg = 8;
-            gameState.bullets.push(baseBullet);
+            baseBullet.type = 'freeze'; baseBullet.color = '#38bdf8'; baseBullet.dmg = 8; gameState.bullets.push(baseBullet);
         } else if (type === 'vampire_drain') {
-            baseBullet.type = 'vampire'; baseBullet.color = '#ec4899'; baseBullet.dmg = 20;
-            gameState.bullets.push(baseBullet);
+            baseBullet.type = 'vampire'; baseBullet.color = '#ec4899'; baseBullet.dmg = 20; gameState.bullets.push(baseBullet);
         } else if (type === 'sticky_grenade') {
-            baseBullet.type = 'sticky'; baseBullet.life = 4.0; baseBullet.vx *= 0.5; baseBullet.vy *= 0.5;
-            gameState.bullets.push(baseBullet);
+            baseBullet.type = 'sticky'; baseBullet.life = 4.0; baseBullet.vx *= 0.5; baseBullet.vy *= 0.5; gameState.bullets.push(baseBullet);
         } else if (type === 'wave_wave') {
-            baseBullet.type = 'pierce_wave'; baseBullet.radius = 20; baseBullet.vx *= 0.5; baseBullet.vy *= 0.5; baseBullet.dmg = 12;
-            gameState.bullets.push(baseBullet);
+            baseBullet.type = 'pierce_wave'; baseBullet.radius = 20; baseBullet.vx *= 0.5; baseBullet.vy *= 0.5; baseBullet.dmg = 12; gameState.bullets.push(baseBullet);
         } else if (type === 'gravity_star') {
-            baseBullet.type = 'g_star'; baseBullet.life = 1.2;
-            gameState.bullets.push(baseBullet);
+            baseBullet.type = 'g_star'; baseBullet.life = 1.2; gameState.bullets.push(baseBullet);
         } else if (type === 'cluster_bomb') {
-            baseBullet.type = 'cluster'; baseBullet.life = 1.1;
-            gameState.bullets.push(baseBullet);
+            baseBullet.type = 'cluster'; baseBullet.life = 1.1; gameState.bullets.push(baseBullet);
         } else {
             gameState.bullets.push(baseBullet);
         }
     });
 
     socket.on('useAbility', (slotIdx) => {
-        let p = gameState.players[socket.id];
-        if (!p || p.hp <= 0) return;
-        let name = p.abilities[slotIdx];
-        let now = Date.now();
-        let readyProp = `ability${slotIdx + 1}ReadyAt`;
-
-        if (now < p[readyProp]) return;
-        p[readyProp] = now + 12000;
+        let p = gameState.players[socket.id]; if (!p || p.hp <= 0) return;
+        let name = p.abilities[slotIdx]; let now = Date.now(); let readyProp = `ability${slotIdx + 1}ReadyAt`;
+        if (now < p[readyProp]) return; p[readyProp] = now + 12000;
 
         if (name === 'blink') {
             let bx = p.x + Math.cos(p.angle) * 140; let by = p.y + Math.sin(p.angle) * 140;
@@ -207,8 +187,7 @@ io.on('connection', (socket) => {
                 else clearInterval(iv);
             }, 250);
         } else if (name === 'iron_fortress') {
-            p.positionAnchored = true; p.hp = Math.min(240, p.hp + 40);
-            setTimeout(() => { p.positionAnchored = false; }, 4000);
+            p.positionAnchored = true; p.hp = Math.min(240, p.hp + 40); setTimeout(() => { p.positionAnchored = false; }, 4000);
         } else if (name === 'wall_build') {
             let bx = Math.floor((p.x + Math.cos(p.angle)*50)/GRID_SIZE);
             let by = Math.floor((p.y + Math.sin(p.angle)*50)/GRID_SIZE);
@@ -222,53 +201,46 @@ io.on('connection', (socket) => {
     });
 });
 
-// Fixed Physics Update Tick Logic Loop
+// HIGH-TICK RATE ENGINE RECTIFIER: SERVER TICK CLAMP RUNNING AT AN ABSOLUTE 60HZ REFRESH MATRIX
 let lastTickTime = performance.now();
 setInterval(() => {
     let now = performance.now(); let dt = (now - lastTickTime) / 1000; lastTickTime = now;
-    if (dt > 0.1) dt = 0.1;
+    if (dt > 0.05) dt = 0.05; // Ensures no heavy distance calculation snaps occur on frame drop
 
     if (gameState.state !== 'playing') return;
 
     for (let i = gameState.fields.length - 1; i >= 0; i--) {
         let f = gameState.fields[i]; f.life -= dt;
         if (f.life <= 0) { gameState.fields.splice(i, 1); continue; }
-        
         if (f.type === 'acid') {
             Object.values(gameState.players).forEach(p => {
-                if (p.hp > 0 && Math.hypot(p.x - f.x, p.y - f.y) < f.radius + 12) { p.hp -= 18 * dt; }
+                if (p.hp > 0 && Math.hypot(p.x - f.x, p.y - f.y) < f.radius + 12) p.hp -= 18 * dt;
             });
         }
         if (f.type === 'heal') {
             Object.values(gameState.players).forEach(p => {
-                if (p.hp > 0 && Math.hypot(p.x - f.x, p.y - f.y) < f.radius) { p.hp = Math.min(240, p.hp + 12 * dt); }
+                if (p.hp > 0 && Math.hypot(p.x - f.x, p.y - f.y) < f.radius) p.hp = Math.min(240, p.hp + 12 * dt);
             });
         }
     }
 
     for (let i = gameState.bullets.length - 1; i >= 0; i--) {
         let b = gameState.bullets[i]; b.life -= dt;
-        
         if (b.type === 'homing') {
             let target = null; let minD = 500;
             Object.values(gameState.players).forEach(p => {
                 if (p.id !== b.ownerId && p.hp > 0) {
-                    let d = Math.hypot(p.x - b.x, p.y - b.y);
-                    if (d < minD) { minD = d; target = p; }
+                    let d = Math.hypot(p.x - b.x, p.y - b.y); if (d < minD) { minD = d; target = p; }
                 }
             });
             if (target) {
-                let ang = Math.atan2(target.y - b.y, target.x - b.x);
-                b.vx = Math.cos(ang) * 450; b.vy = Math.sin(ang) * 450;
+                let ang = Math.atan2(target.y - b.y, target.x - b.x); b.vx = Math.cos(ang) * 450; b.vy = Math.sin(ang) * 450;
             }
         }
 
         b.x += b.vx * dt; b.y += b.vy * dt;
-
         let hit = checkServerWallCollision(b.x, b.y, b.radius);
-        if (hit && b.type === 'bounce' && b.bounces-- > 0) {
-            b.vx = -b.vx; b.y -= b.vy * dt * 2; hit = false;
-        }
+        if (hit && b.type === 'bounce' && b.bounces-- > 0) { b.vx = -b.vx; b.y -= b.vy * dt * 2; hit = false; }
 
         if (b.life <= 0 || (hit && b.type !== 'pierce_wave')) {
             if (b.type === 'napalm_lob') gameState.fields.push({ x: b.x, y: b.y, radius: 70, type: 'acid', life: 4.5 });
@@ -284,27 +256,15 @@ setInterval(() => {
         Object.values(gameState.players).forEach(p => {
             if (p.hp > 0 && p.id !== b.ownerId && Math.hypot(p.x - b.x, p.y - b.y) < 22) {
                 if (p.cloakActive) return;
-                
-                let dmg = b.dmg || 15;
-                p.hp -= dmg;
-
+                let dmg = b.dmg || 15; p.hp -= dmg;
                 if (b.type === 'freeze') p.stimActiveUntil = 0;
                 if (b.type === 'vampire') {
-                    let owner = gameState.players[b.ownerId];
-                    if (owner) owner.hp = Math.min(240, owner.hp + (dmg * 0.5));
+                    let owner = gameState.players[b.ownerId]; if (owner) owner.hp = Math.min(240, owner.hp + (dmg * 0.5));
                 }
-
                 if (p.hp <= 0) {
                     let k = gameState.players[b.ownerId];
                     if (k) { if (k.team === 'red') gameState.scores.red++; else gameState.scores.blue++; }
-                    
-                    // Transmute human operators into zombies automatically inside Zombie game modes
-                    if (gameState.gamemode === 'ZOMBIE') {
-                        p.isZombie = true; p.hp = 180;
-                    } else {
-                        p.hp = 100;
-                    }
-                    
+                    if (gameState.gamemode === 'ZOMBIE') { p.isZombie = true; p.hp = 180; } else { p.hp = 100; }
                     setTimeout(() => {
                         p.x = 200 + Math.random() * 1600; p.y = 200 + Math.random() * 1600;
                         io.emit('playerRespawned', { id: p.id, x: p.x, y: p.y });
@@ -317,19 +277,17 @@ setInterval(() => {
 
     Object.values(gameState.players).forEach(p => {
         if (p.hp <= 0 || p.positionAnchored) return;
-        let input = p.lastInputState;
-        let dx = 0; let dy = 0;
+        let input = p.lastInputState; let dx = 0; let dy = 0;
         if (input.w) dy -= 1; if (input.s) dy += 1;
         if (input.a) dx -= 1; if (input.d) dx += 1;
         if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
 
         let speed = 252;
-        if (p.device === 'mobile') speed *= 1.08; // Cross-platform balancing factor calibration
+        if (p.device === 'mobile') speed *= 1.15; // Normalized tick velocity scalar for cross platform equality
         if (p.loadout && p.loadout[p.activeWeaponIndex] === 'chaingun') speed = 150;
         if (Date.now() < p.stimActiveUntil) speed += 120;
 
-        let nextX = p.x + (dx * speed * dt);
-        let nextY = p.y + (dy * speed * dt);
+        let nextX = p.x + (dx * speed * dt); let nextY = p.y + (dy * speed * dt);
 
         if (p.phaseActive) {
             p.x = Math.max(15, Math.min(MAP_SIZE - 15, nextX)); p.y = Math.max(15, Math.min(MAP_SIZE - 15, nextY));
@@ -344,4 +302,4 @@ setInterval(() => {
 }, 1000 / 60);
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => { console.log(`NEON APEX LIVE FRAMEWORK RUNNING ON PORT // ${PORT}`); });
+http.listen(PORT, () => { console.log(`SMOOTH ENGINE CORE ONLINE ON PORT ${PORT}`); });
