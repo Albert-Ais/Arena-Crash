@@ -12,12 +12,10 @@ let camera = { x: 1000, y: 1000 };
 let inputState = { w: false, a: false, s: false, d: false, angle: 0 };
 let radarPulses = [];
 
-// Client Prediction Core Engine Position Variables
 let predictedPos = { x: 1000, y: 1000 };
 let serverVerifiedPos = { x: 1000, y: 1000 };
 let hasSetInitialPos = false;
 
-// Cross-Platform Global Hardware Configuration Tables
 let selectedDeviceProfile = 'pc'; 
 let keyboardBinds = {
     up: 'w', left: 'a', down: 's', right: 'd',
@@ -95,7 +93,7 @@ function buildHardwareConfigInterface() {
             </div>
         </div>
 
-        ${compileGridHTML('init')}
+        \${compileGridHTML('init')}
         <button id="dispatch-queue-btn" class="submit-btn">ENGAGE MATCH FRAMEWORK</button>
     `;
 }
@@ -104,14 +102,14 @@ function compileGridHTML(suffix) {
     return `
         <div class="category-header">Weapons Systems (Select Exactly 3)</div>
         <div class="grid-layout">
-            ${AVAILABLE_WEAPONS_LIST.map(w => `
-                <div class="card"><label><input type="checkbox" class="wep-chk-${suffix}" value="${w.id}"> <span class="card-title" style="color: ${w.color};">${w.title}</span></label><div class="card-text">${w.desc}</div></div>
+            \${AVAILABLE_WEAPONS_LIST.map(w => `
+                <div class="card"><label><input type="checkbox" class="wep-chk-\${suffix}" value="\${w.id}"> <span class="card-title" style="color: \${w.color};">\${w.title}</span></label><div class="card-text">\${w.desc}</div></div>
             `).join('')}
         </div>
         <div class="category-header ability-hdr">Abilities Grid Matrix (Select Exactly 2)</div>
         <div class="grid-layout">
-            ${AVAILABLE_ABILITIES_LIST.map(a => `
-                <div class="card"><label><input type="checkbox" class="abil-chk-${suffix}" value="${a.id}"> <span class="card-title" style="color:#00ff66;">${a.title}</span></label><div class="card-text">${a.desc}</div></div>
+            \${AVAILABLE_ABILITIES_LIST.map(a => `
+                <div class="card"><label><input type="checkbox" class="abil-chk-\${suffix}" value="\${a.id}"> <span class="card-title" style="color:#00ff66;">\${a.title}</span></label><div class="card-text">\${a.desc}</div></div>
             `).join('')}
         </div>
     `;
@@ -122,7 +120,7 @@ document.getElementById('primary-registry-box').innerHTML = buildHardwareConfigI
 window.assignHardwareProfile = function(profile) {
     selectedDeviceProfile = profile;
     document.querySelectorAll('.device-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`dev-btn-${profile}`).classList.add('active');
+    document.getElementById(`dev-btn-\${profile}`).classList.add('active');
 
     let container = document.getElementById('dynamic-binds-customizer-wrapper');
     if (profile === 'pc') {
@@ -130,32 +128,30 @@ window.assignHardwareProfile = function(profile) {
             <div class="category-header" style="color: #38bdf8; border-color: #38bdf8;">CUSTOMIZE KEYBOARD INPUT MAPS</div>
             <p style="font-size:11px; color:#94a3b8; margin: 0 0 10px 4px; font-family:sans-serif;">* Note: Arrow keys are also automatically enabled alongside your custom movement keys.</p>
             <div class="controls-mapping-window">
-                <div class="bind-row"><span class="bind-label">Move Forward</span><button class="bind-input-btn" id="bk-up" onclick="primeInputCapture('up')">${keyboardBinds.up.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Move Left</span><button class="bind-input-btn" id="bk-left" onclick="primeInputCapture('left')">${keyboardBinds.left.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Move Backward</span><button class="bind-input-btn" id="bk-down" onclick="primeInputCapture('down')">${keyboardBinds.down.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Move Right</span><button class="bind-input-btn" id="bk-right" onclick="primeInputCapture('right')">${keyboardBinds.right.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Weapon Reload</span><button class="bind-input-btn" id="bk-reload" onclick="primeInputCapture('reload')">${keyboardBinds.reload.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Primary Fire</span><button class="bind-input-btn" id="bk-shoot" onclick="primeInputCapture('shoot')">${keyboardBinds.shoot === ' ' ? 'SPACE' : keyboardBinds.shoot.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Ability One</span><button class="bind-input-btn" id="bk-ability1" onclick="primeInputCapture('ability1')">${keyboardBinds.ability1.toUpperCase()}</button></div>
-                <div class="bind-row"><span class="bind-label">Ability Two</span><button class="bind-input-btn" id="bk-ability2" onclick="primeInputCapture('ability2')">${keyboardBinds.ability2.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Move Forward</span><button class="bind-input-btn" id="bk-up" onclick="primeInputCapture('up')">\${keyboardBinds.up.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Move Left</span><button class="bind-input-btn" id="bk-left" onclick="primeInputCapture('left')">\${keyboardBinds.left.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Move Backward</span><button class="bind-input-btn" id="bk-down" onclick="primeInputCapture('down')">\${keyboardBinds.down.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Move Right</span><button class="bind-input-btn" id="bk-right" onclick="primeInputCapture('right')">\${keyboardBinds.right.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Weapon Reload</span><button class="bind-input-btn" id="bk-reload" onclick="primeInputCapture('reload')">\${keyboardBinds.reload.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Primary Fire</span><button class="bind-input-btn" id="bk-shoot" onclick="primeInputCapture('shoot')">\${keyboardBinds.shoot === ' ' ? 'SPACE' : keyboardBinds.shoot.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Ability One</span><button class="bind-input-btn" id="bk-ability1" onclick="primeInputCapture('ability1')">\${keyboardBinds.ability1.toUpperCase()}</button></div>
+                <div class="bind-row"><span class="bind-label">Ability Two</span><button class="bind-input-btn" id="bk-ability2" onclick="primeInputCapture('ability2')">\${keyboardBinds.ability2.toUpperCase()}</button></div>
             </div>
         `;
     } else if (profile === 'mobile') {
         container.innerHTML = `
             <div class="category-header" style="color: #00ff66; border-color: #00ff66;">MOBILE HARDWARE MATRIX OVERVIEW</div>
             <p style="font-size:11px; color:#94a3b8; margin: 0 0 16px 4px; font-family:sans-serif; line-height:1.5;">
-                Left on-screen joystick handles orientation vector driving velocities. Right on-screen joystick operates player heading angle configurations. On-screen action button layouts map direct firing execution cycles.
+                Left on-screen joystick handles orientation vector driving velocities. Right on-screen joystick operates player heading angle configurations.
             </p>
         `;
     } else if (profile === 'console') {
         container.innerHTML = `
             <div class="category-header" style="color: #a855f7; border-color: #a855f7;">STANDARD CONTROLLER GAMEPAD MAPS</div>
             <p style="font-size:11px; color:#94a3b8; margin: 0 0 16px 4px; font-family:sans-serif; line-height:1.5;">
-                • Left Analog Stick: Controls linear position movement translation vectors.<br>
-                • Right Analog Stick: Drives crosshair tracking and rotation angular velocity.<br>
-                • Right Trigger [R2 / RT]: Discharges active firing mechanisms.<br>
-                • Square / X Button: Initiates weapon tactical ammunition reloads.<br>
-                • Left Bumpers [L1/R1]: Activates Mapped Skill Matrix layers 1 and 2 respectively.
+                • Left Analog Stick: Controls position movement.<br>
+                • Right Analog Stick: Drives crosshair tracking.<br>
+                • Right Trigger: Discharges fire mechanics.
             </p>
         `;
     }
@@ -165,7 +161,7 @@ window.primeInputCapture = function(action) {
     if (activeListeningButtonNode) {
         activeListeningButtonNode.innerText = keyboardBinds[activeListeningButtonNode.dataset.action].toUpperCase();
     }
-    let btn = document.getElementById(`bk-${action}`);
+    let btn = document.getElementById(`bk-\${action}`);
     btn.innerText = "PRESS KEY...";
     btn.dataset.action = action;
     activeListeningButtonNode = btn;
@@ -184,8 +180,6 @@ window.addEventListener('keydown', (e) => {
 
     if (selectedDeviceProfile === 'pc') {
         let key = e.key.toLowerCase();
-        
-        // Custom Config Map OR Static Standard Hardware Arrow Keys
         if (key === keyboardBinds.up || e.key === 'ArrowUp') inputState.w = true;
         if (key === keyboardBinds.left || e.key === 'ArrowLeft') inputState.a = true;
         if (key === keyboardBinds.down || e.key === 'ArrowDown') inputState.s = true;
@@ -218,7 +212,6 @@ window.addEventListener('mousemove', (e) => {
     }
 });
 
-/* Mobile Driver Joysticks */
 let activeJoysticksTracker = {
     left: { active: false, startX: 0, startY: 0, curX: 0, curY: 0 },
     right: { active: false, startX: 0, startY: 0, curX: 0, curY: 0 }
@@ -255,7 +248,7 @@ function setupTouchInterfaceLoop() {
         
         let thumbNode = element.querySelector('.joystick-thumb-node');
         if (thumbNode) {
-            thumbNode.style.transform = `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px)`;
+            thumbNode.style.transform = `translate(\${Math.cos(angle) * distance}px, \${Math.sin(angle) * distance}px)`;
         }
 
         if (tracker === activeJoysticksTracker.left) {
@@ -295,7 +288,6 @@ window.handleMobileAction = function(actionType) {
     }
 };
 
-/* Console Controller Gamepad Scan Engine Loops */
 function scanConsoleGamepadInputs() {
     let gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
     let activePad = null;
@@ -318,14 +310,6 @@ function scanConsoleGamepadInputs() {
     if (activePad.buttons[2]?.pressed) {
         if (!inputState.wasReloadPressedLastFrame) { socket.emit('triggerReload'); inputState.wasReloadPressedLastFrame = true; }
     } else { inputState.wasReloadPressedLastFrame = false; }
-
-    if (activePad.buttons[4]?.pressed) {
-        if (!inputState.wasAb1Pressed) { socket.emit('useAbility', 0); inputState.wasAb1Pressed = true; }
-    } else { inputState.wasAb1Pressed = false; }
-
-    if (activePad.buttons[5]?.pressed) {
-        if (!inputState.wasAb2Pressed) { socket.emit('useAbility', 1); inputState.wasAb2Pressed = true; }
-    } else { inputState.wasAb2Pressed = false; }
 }
 
 function checkClientWallCollision(x, y, radius) {
@@ -348,8 +332,8 @@ function checkClientWallCollision(x, y, radius) {
 }
 
 function bindLimits(type, limit) {
-    document.querySelectorAll(`.${type}`).forEach(box => {
-        box.addEventListener('change', () => { if (document.querySelectorAll(`.${type}:checked`).length > limit) box.checked = false; });
+    document.querySelectorAll(`.\${type}`).forEach(box => {
+        box.addEventListener('change', () => { if (document.querySelectorAll(`.\${type}:checked`).length > limit) box.checked = false; });
     });
 }
 bindLimits('wep-chk-init', 3); bindLimits('abil-chk-init', 2); bindLimits('wep-chk-mid', 3); bindLimits('abil-chk-mid', 2);
@@ -361,8 +345,8 @@ document.querySelectorAll('.abil-chk-init')[0].checked = true;
 document.querySelectorAll('.abil-chk-init')[3].checked = true; 
 
 function grabPack(suffix) {
-    let weapons = []; document.querySelectorAll(`.wep-chk-${suffix}:checked`).forEach(el => weapons.push(el.value));
-    let abs = []; document.querySelectorAll(`.abil-chk-${suffix}:checked`).forEach(el => abs.push(el.value));
+    let weapons = []; document.querySelectorAll(`.wep-chk-\${suffix}:checked`).forEach(el => weapons.push(el.value));
+    let abs = []; document.querySelectorAll(`.abil-chk-\${suffix}:checked`).forEach(el => abs.push(el.value));
     return { loadout: weapons, abilities: abs };
 }
 
@@ -392,46 +376,35 @@ socket.on('loadoutActionAck', () => { document.getElementById('midround-terminal
 socket.on('playerRespawned', (data) => { if (data.id === myId) { predictedPos.x = data.x; predictedPos.y = data.y; serverVerifiedPos.x = data.x; serverVerifiedPos.y = data.y; } });
 socket.on('matchStarted', (data) => { localGrid = data.map; localMapStyle = data.mapStyle; document.getElementById('midround-terminal').classList.add('hidden'); hasSetInitialPos = false; });
 socket.on('voteRegisteredUpdate', (votes) => {
-    document.getElementById('count-desert_outpost').innerText = `VOTES: ${votes.desert_outpost}`;
-    document.getElementById('count-urban_blocks').innerText = `VOTES: ${votes.urban_blocks}`;
+    document.getElementById('count-desert_outpost').innerText = `VOTES: \${votes.desert_outpost}`;
+    document.getElementById('count-urban_blocks').innerText = `VOTES: \${votes.urban_blocks}`;
 });
 
 socket.on('showLoadoutCustomizer', (data) => { 
-    document.getElementById('round-banner').innerText = `WAVE ${data.round || 1} UPGRADES`; 
+    document.getElementById('round-banner').innerText = `WAVE \${data.round || 1} UPGRADES`; 
     document.getElementById('midround-terminal').classList.remove('hidden'); 
 });
-
-socket.on('radarPulseFeedback', (data) => { radarPulses.push({ x: data.x, y: data.y, radius: 10, maxRadius: 400, team: data.team }); });
 
 socket.on('serverTickUpdate', (data) => {
     serverGameState = data; if (data.mapStyle) localMapStyle = data.mapStyle;
     let min = Math.floor(data.matchTimer / 60).toString().padStart(2, '0');
     let sec = (data.matchTimer % 60).toString().padStart(2, '0');
-    document.getElementById('top-center-timer-box').innerText = `${min}:${sec}`;
+    document.getElementById('top-center-timer-box').innerText = `\${min}:\${sec}`;
     
     if (data.mode === 'TDM') {
-        document.getElementById('scores-panel').innerText = `MODE: TEAM DEATHMATCH || RED KILLS: ${data.scores.red} | BLUE KILLS: ${data.scores.blue}`;
-    } else if (data.mode === 'KOTH') {
-        document.getElementById('scores-panel').innerText = `MODE: KING OF THE HILL || RED SCORE: ${data.scores.red} | BLUE SCORE: ${data.scores.blue}`;
-    } else if (data.mode === 'CTF') {
-        document.getElementById('scores-panel').innerText = `MODE: CAPTURE THE FLAG || RED CAPS: ${data.scores.red} | BLUE CAPS: ${data.scores.blue}`;
+        document.getElementById('scores-panel').innerText = `MODE: TEAM DEATHMATCH || RED KILLS: \${data.scores.red} | BLUE KILLS: \${data.scores.blue}`;
     }
 
     if (myId && data.players[myId]) {
         let me = data.players[myId];
-        document.getElementById('active-wep-line').innerText = `LOADOUT: ${(me.loadout[me.activeWeaponIndex] || 'None').toUpperCase()}`;
-        document.getElementById('ammo-line').innerText = me.isReloading ? "AMMO: RELOADING..." : `MAG CAPACITY: ${me.ammo}`;
+        document.getElementById('active-wep-line').innerText = `LOADOUT: \${(me.loadout[me.activeWeaponIndex] || 'None').toUpperCase()}`;
+        document.getElementById('ammo-line').innerText = me.isReloading ? "AMMO: RELOADING..." : `MAG CAPACITY: \${me.ammo}`;
 
         let now = Date.now();
         let mDiff = Math.max(0, Math.ceil((me.ability1ReadyAt - now) / 1000));
         let mNode = document.getElementById('cd-m-status');
-        if (mDiff > 0) { mNode.innerText = `RECHARGING (${mDiff}S)`; mNode.className = "cd-wait"; }
-        else { mNode.innerText = `READY [${me.abilities[0].toUpperCase()}]`; mNode.className = "cd-ready"; }
-
-        let nDiff = Math.max(0, Math.ceil((me.ability2ReadyAt - now) / 1000));
-        let nNode = document.getElementById('cd-n-status');
-        if (nDiff > 0) { nNode.innerText = `RECHARGING (${nDiff}S)`; nNode.className = "cd-wait"; }
-        else { nNode.innerText = `READY [${me.abilities[1].toUpperCase()}]`; nNode.className = "cd-ready"; }
+        if (mDiff > 0) { mNode.innerText = `RECHARGING (\${mDiff}S)`; mNode.className = "cd-wait"; }
+        else { mNode.innerText = `READY [\${me.abilities[0].toUpperCase()}]`; mNode.className = "cd-ready"; }
 
         if (!hasSetInitialPos) {
             predictedPos.x = me.x; predictedPos.y = me.y;
@@ -442,7 +415,6 @@ socket.on('serverTickUpdate', (data) => {
     }
 });
 
-// High Precision Native Frame-Rate Delta Movement Prediction Engine
 let lastPhysicsLoopTimestamp = performance.now();
 
 function executeHighPrecisionClientPrediction(currentFrameTime) {
@@ -463,7 +435,6 @@ function executeHighPrecisionClientPrediction(currentFrameTime) {
 
             if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
 
-            // Uniform Speed constants scaled completely by time slice loops
             let currentMoveSpeed = 252; 
             if (me.loadout && me.loadout[me.activeWeaponIndex] === 'chaingun') currentMoveSpeed = 150; 
             if (Date.now() < me.stimActiveUntil) currentMoveSpeed += 120;
@@ -475,12 +446,11 @@ function executeHighPrecisionClientPrediction(currentFrameTime) {
             if (!checkClientWallCollision(predictedPos.x, nextY, 16)) predictedPos.y = nextY;
         }
 
-        // Linear interpolation reconciliation algorithm preventing rubberbanding corrections
         let serverDist = Math.hypot(predictedPos.x - serverVerifiedPos.x, predictedPos.y - serverVerifiedPos.y);
         if (serverDist > 48) {
             predictedPos.x = serverVerifiedPos.x; predictedPos.y = serverVerifiedPos.y;
         } else if (serverDist > 0.1) {
-            let smoothingAlpha = 1 - Math.exp(-18 * dt); 
+            let smoothingAlpha = 1 - Math.exp(-25 * dt); 
             predictedPos.x += (serverVerifiedPos.x - predictedPos.x) * smoothingAlpha;
             predictedPos.y += (serverVerifiedPos.y - predictedPos.y) * smoothingAlpha;
         }
@@ -500,11 +470,6 @@ function paintLoop() {
 
     let target = serverGameState.players[myId];
     let camX = predictedPos.x; let camY = predictedPos.y;
-    
-    if (target.controllingDecoyId) {
-        let controlledClone = serverGameState.decoys.find(d => d.id === target.controllingDecoyId);
-        if (controlledClone) { camX = controlledClone.x; camY = controlledClone.y; }
-    }
 
     camera.x += (camX - camera.x) * 0.1; camera.y += (camY - camera.y) * 0.1;
     let oX = canvas.width / 2 - camera.x; let oY = canvas.height / 2 - camera.y;
@@ -522,25 +487,6 @@ function paintLoop() {
         environmentDecorations.forEach(d => { ctx.fillRect(d.x + oX, d.y + oY, d.size*1.5, d.size); });
     }
 
-    if (serverGameState.mode === 'KOTH' && serverGameState.kothZone) {
-        let zone = serverGameState.kothZone;
-        ctx.save(); ctx.beginPath(); ctx.arc(zone.x + oX, zone.y + oY, zone.radius, 0, Math.PI * 2);
-        ctx.fillStyle = zone.controllingTeam === 'red' ? 'rgba(255,0,127,0.12)' : (zone.controllingTeam === 'blue' ? 'rgba(0,240,255,0.12)' : 'rgba(255,255,255,0.04)');
-        ctx.fill();
-        ctx.strokeStyle = zone.controllingTeam === 'red' ? '#ff007f' : (zone.controllingTeam === 'blue' ? '#00f0ff' : '#64748b');
-        ctx.lineWidth = 3; ctx.setLineDash([6, 6]); ctx.stroke(); ctx.restore();
-    }
-
-    if (serverGameState.mode === 'CTF' && serverGameState.ctfFlags) {
-        Object.keys(serverGameState.ctfFlags).forEach(color => {
-            let flag = serverGameState.ctfFlags[color];
-            ctx.fillStyle = color === 'red' ? 'rgba(255, 0, 127, 0.2)' : 'rgba(0, 240, 255, 0.2)';
-            ctx.fillRect(flag.homeX + oX - 16, flag.homeY + oY - 16, 32, 32);
-            ctx.beginPath(); ctx.arc(flag.x + oX, flag.y + oY, 12, 0, Math.PI * 2);
-            ctx.fillStyle = color === 'red' ? '#ff007f' : '#00f0ff'; ctx.fill();
-        });
-    }
-
     if (localGrid) {
         for (let x = 0; x < localGrid.length; x++) {
             for (let y = 0; y < localGrid[x].length; y++) {
@@ -552,52 +498,15 @@ function paintLoop() {
         }
     }
 
-    if (serverGameState.fields) {
-        serverGameState.fields.forEach(f => {
-            ctx.save(); ctx.beginPath(); ctx.arc(f.x + oX, f.y + oY, f.radius, 0, Math.PI * 2);
-            if (f.type === 'smoke') { ctx.fillStyle = 'rgba(148, 163, 184, 0.45)'; ctx.fill(); } 
-            else if (f.type === 'gravity') { ctx.strokeStyle = 'rgba(168, 85, 247, 0.7)'; ctx.stroke(); } 
-            else if (f.type === 'napalm_pool') { ctx.fillStyle = 'rgba(234, 88, 12, 0.4)'; ctx.fill(); }
-            else if (f.type === 'explosion_flash') { ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'; ctx.fill(); }
-            ctx.restore();
-        });
-    }
-
-    for (let i = radarPulses.length - 1; i >= 0; i--) {
-        let p = radarPulses[i]; p.radius += 6;
-        if (p.radius >= p.maxRadius) { radarPulses.splice(i, 1); continue; }
-        ctx.strokeStyle = p.team === 'red' ? 'rgba(255, 0, 127, 0.6)' : 'rgba(0, 240, 255, 0.6)';
-        ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x + oX, p.y + oY, p.radius, 0, Math.PI * 2); ctx.stroke();
-    }
-
-    // Explicit Decoy Graphics Setup: Neon border, absolute black inner circle cavity
-    if (serverGameState.decoys) {
-        serverGameState.decoys.forEach(dec => {
-            ctx.save(); ctx.translate(dec.x + oX, dec.y + oY);
-            ctx.strokeStyle = dec.team === 'red' ? '#ff007f' : '#00f0ff';
-            ctx.lineWidth = 4;
-            ctx.fillStyle = '#000000'; 
-            ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            
-            ctx.rotate(dec.ownerId === myId ? inputState.angle : dec.angle);
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5); 
-            ctx.restore();
-        });
-    }
-
     serverGameState.bullets.forEach(b => {
         ctx.fillStyle = b.color || '#fbbf24'; ctx.beginPath(); ctx.arc(b.x + oX, b.y + oY, b.radius || 4, 0, Math.PI * 2); ctx.fill();
     });
 
-    // Authoritative Player Graphics Setup: Neon border, absolute black inner circle cavity
     Object.values(serverGameState.players).forEach(p => {
         if (p.hp <= 0) return;
-        if (p.id !== myId && now < p.cloakActiveUntil) return;
-
         ctx.save(); 
         if (p.id === myId) {
             ctx.translate(predictedPos.x + oX, predictedPos.y + oY);
-            if (now < p.cloakActiveUntil) ctx.globalAlpha = 0.35;
         } else {
             ctx.translate(p.x + oX, p.y + oY);
         }
