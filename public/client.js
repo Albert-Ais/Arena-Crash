@@ -17,17 +17,17 @@ let hasSetInitialPos = false;
 let selectedDeviceProfile = 'pc';
 let localActiveWepIdx = 0;
 
-// Client-side progression state loaded from LocalStorage
-let clientProgression = { xp: 0, level: 1, kills: 0, deaths: 0, wins: 0, rankPoints: 100 };
+// Client-side progression profile
+let clientProgression = { kills: 0, deaths: 0, wins: 0, rankPoints: 100 };
 function loadProgressionMetrics() {
-    const data = localStorage.getItem('apex_progression_v1');
+    const data = localStorage.getItem('apex_progression_v2');
     if (data) {
         try { clientProgression = JSON.parse(data); } catch(e) {}
     }
     renderProgressionDisplays();
 }
 function saveProgressionMetrics() {
-    localStorage.setItem('apex_progression_v1', JSON.stringify(clientProgression));
+    localStorage.setItem('apex_progression_v2', JSON.stringify(clientProgression));
     renderProgressionDisplays();
 }
 function getRankTierName(rp) {
@@ -37,11 +37,9 @@ function getRankTierName(rp) {
     return "ELITE APEX";
 }
 function renderProgressionDisplays() {
-    document.getElementById('prof-level-lbl').innerText = `LEVEL: ${clientProgression.level} (${clientProgression.xp} XP)`;
     document.getElementById('prof-rank-lbl').innerText = `RANK: ${getRankTierName(clientProgression.rankPoints)} (${clientProgression.rankPoints} RP)`;
     document.getElementById('prof-stats-lbl').innerText = `KILLS: ${clientProgression.kills} | DEATHS: ${clientProgression.deaths} | WINS: ${clientProgression.wins}`;
 }
-loadProgressionMetrics();
 
 // FX Visual Arrays
 let floatingNumbers = [];
@@ -51,27 +49,27 @@ let directionDamageIndicators = [];
 let shieldCracks = [];
 
 const WEAPONS_CATALOG = [
-    { id: 'railgun', title: 'Railgun', desc: 'Instant hitscan beam line.', reqLvl: 1 },
-    { id: 'chaingun', title: 'AP Chaingun', desc: 'Rapid automatic fire loops.', reqLvl: 1 },
-    { id: 'shotgun', title: 'Shotgun', desc: 'Fires wide projectile bundles.', reqLvl: 1 },
-    { id: 'heavy_revolver', title: 'Heavy Revolver', desc: 'Slow massive damage frame puncher.', reqLvl: 1 },
-    { id: 'bouncing_sniper', title: 'Bouncing Sniper', desc: 'Projectiles ricochet off grids.', reqLvl: 2 },
-    { id: 'napalm', title: 'Napalm Shell', desc: 'Lobs thermal tick fire damage.', reqLvl: 2 },
-    { id: 'seeker', title: 'Seeker Missile', desc: 'Self-correcting hunting payload.', reqLvl: 3 },
-    { id: 'sawblade', title: 'Sawblade Launcher', desc: 'Slicing fast bouncing blades.', reqLvl: 3 },
-    { id: 'plasma_rifle', title: 'Plasma Rifle', desc: 'Homing energy bolts.', reqLvl: 4 },
-    { id: 'micro_nuke', title: 'Micro-Nuke Launcher', desc: 'Severe structural blast radii.', reqLvl: 5 }
+    { id: 'railgun', title: 'Railgun', desc: 'Instant hitscan beam line.' },
+    { id: 'chaingun', title: 'AP Chaingun', desc: 'Rapid automatic fire loops.' },
+    { id: 'shotgun', title: 'Shotgun', desc: 'Fires wide projectile bundles.' },
+    { id: 'heavy_revolver', title: 'Heavy Revolver', desc: 'Slow massive damage frame puncher.' },
+    { id: 'bouncing_sniper', title: 'Bouncing Sniper', desc: 'Projectiles ricochet off grids.' },
+    { id: 'napalm', title: 'Napalm Shell', desc: 'Lobs thermal tick fire damage.' },
+    { id: 'seeker', title: 'Seeker Missile', desc: 'Self-correcting hunting payload.' },
+    { id: 'sawblade', title: 'Sawblade Launcher', desc: 'Slicing fast bouncing blades.' },
+    { id: 'plasma_rifle', title: 'Plasma Rifle', desc: 'Homing energy bolts.' },
+    { id: 'micro_nuke', title: 'Micro-Nuke Launcher', desc: 'Severe structural blast radii.' }
 ];
 
 const ABILITIES_CATALOG = [
-    { id: 'blink', title: 'Blink Matrix', desc: 'Instantly flash forward through coordinates.', reqLvl: 1 },
-    { id: 'stim', title: 'Stim Injection', desc: 'Boost velocity loops and regain vitals.', reqLvl: 1 },
-    { id: 'decoy', title: 'Decoy Clone', desc: 'Spawns running replica construct to feign retreat.', reqLvl: 1 },
-    { id: 'shield', title: 'Deflect Shield', desc: 'Deploy barrier eating standard impacts.', reqLvl: 2 },
-    { id: 'smoke', title: 'Smoke Screen', desc: 'Drops dynamic sight-breaking obscurities.', reqLvl: 2 },
-    { id: 'radar', title: 'Radar Pulse', desc: 'Illuminates match positions through fog.', reqLvl: 3 },
-    { id: 'overdrive', title: 'Fire Overdrive', desc: 'Overclocks reloading cycle speeds.', reqLvl: 4 },
-    { id: 'phase_shift', title: 'Phase Shift Matrix', desc: 'Enter dimensions bypassing walls for 2s.', reqLvl: 5 }
+    { id: 'blink', title: 'Blink Matrix', desc: 'Instantly flash forward through coordinates.' },
+    { id: 'stim', title: 'Stim Injection', desc: 'Boost velocity loops and regain vitals.' },
+    { id: 'decoy', title: 'Decoy Clone', desc: 'Spawns running replica construct to feign retreat.' },
+    { id: 'shield', title: 'Deflect Shield', desc: 'Deploy barrier eating standard impacts.' },
+    { id: 'smoke', title: 'Smoke Screen', desc: 'Drops dynamic sight-breaking obscurities.' },
+    { id: 'radar', title: 'Radar Pulse', desc: 'Illuminates match positions through fog.' },
+    { id: 'overdrive', title: 'Fire Overdrive', desc: 'Overclocks reloading cycle speeds.' },
+    { id: 'phase_shift', title: 'Phase Shift Matrix', desc: 'Enter dimensions bypassing walls for 2s.' }
 ];
 
 window.evaluateZombieConstraints = function() {
@@ -87,34 +85,28 @@ window.assignActiveHardwareProfile = function(profileType) {
 };
 
 function renderCatalogGrids() {
-    const lvl = clientProgression.level;
-    document.getElementById('weapons-placement-grid').innerHTML = WEAPONS_CATALOG.map(w => {
-        const locked = lvl < w.reqLvl;
-        return `
-            <div class="card" style="${locked ? 'opacity:0.4;' : ''}">
-                <label>
-                    <input type="checkbox" class="wep-chk" value="${w.id}" ${locked ? 'disabled' : ''}> 
-                    <span class="card-title" style="color:#fbbf24;">${w.title} ${locked ? `[LVL ${w.reqLvl}]` : ''}</span>
-                </label>
-                <div class="card-text">${w.desc}</div>
-            </div>
-        `;
-    }).join('');
+    document.getElementById('weapons-placement-grid').innerHTML = WEAPONS_CATALOG.map(w => `
+        <div class="card">
+            <label>
+                <input type="checkbox" class="wep-chk" value="${w.id}"> 
+                <span class="card-title" style="color:#fbbf24;">${w.title}</span>
+            </label>
+            <div class="card-text">${w.desc}</div>
+        </div>
+    `).join('');
     
-    document.getElementById('abilities-placement-grid').innerHTML = ABILITIES_CATALOG.map(a => {
-        const locked = lvl < a.reqLvl;
-        return `
-            <div class="card" style="${locked ? 'opacity:0.4;' : ''}">
-                <label>
-                    <input type="checkbox" class="abil-chk" value="${a.id}" ${locked ? 'disabled' : ''}> 
-                    <span class="card-title" style="color:#00ff66;">${a.title} ${locked ? `[LVL ${a.reqLvl}]` : ''}</span>
-                </label>
-                <div class="card-text">${a.desc}</div>
-            </div>
-        `;
-    }).join('');
+    document.getElementById('abilities-placement-grid').innerHTML = ABILITIES_CATALOG.map(a => `
+        <div class="card">
+            <label>
+                <input type="checkbox" class="abil-chk" value="${a.id}"> 
+                <span class="card-title" style="color:#00ff66;">${a.title}</span>
+            </label>
+            <div class="card-text">${a.desc}</div>
+        </div>
+    `).join('');
 }
 renderCatalogGrids();
+loadProgressionMetrics();
 
 function applyLimitRules(className, maxAllowed) {
     document.querySelectorAll(`.${className}`).forEach(box => {
@@ -125,17 +117,17 @@ function applyLimitRules(className, maxAllowed) {
 }
 applyLimitRules('wep-chk', 5); applyLimitRules('abil-chk', 3);
 
-// Auto-check first valid options
-let wChks = document.querySelectorAll('.wep-chk:not([disabled])');
+// Auto-check valid options
+let wChks = document.querySelectorAll('.wep-chk');
 for(let i=0; i<Math.min(5, wChks.length); i++) wChks[i].checked = true;
-let aChks = document.querySelectorAll('.abil-chk:not([disabled])');
+let aChks = document.querySelectorAll('.abil-chk');
 for(let i=0; i<Math.min(3, aChks.length); i++) aChks[i].checked = true;
 
 document.getElementById('dispatch-queue-btn').addEventListener('click', () => {
     let chosenWeps = []; document.querySelectorAll('.wep-chk:checked').forEach(e => chosenWeps.push(e.value));
     let chosenAbils = []; document.querySelectorAll('.abil-chk:checked').forEach(e => chosenAbils.push(e.value));
     
-    if (chosenWeps.length !== 5 || chosenAbils.length !== 3) return alert("Select exactly 5 unlocked weapons and 3 abilities.");
+    if (chosenWeps.length === 0 || chosenAbils.length === 0) return alert("Select at least 1 weapon and 1 ability.");
     
     document.getElementById('setup-terminal').classList.add('hidden');
     
@@ -178,9 +170,12 @@ window.addEventListener('keydown', (e) => {
         if (k === 'm') socket.emit('useAbility', 0);
         if (k === 'n') socket.emit('useAbility', 1);
         if (k === 'b') socket.emit('useAbility', 2);
-        if (['1','2','3','4','5'].includes(k)) socket.emit('switchWeapon', parseInt(k) - 1);
+        if (['1','2','3','4','5'].includes(k)) {
+            let targetIdx = parseInt(k) - 1;
+            socket.emit('switchWeapon', targetIdx);
+        }
     }
-    if (e.key === 'enter') { chatInput.focus(); }
+    if (e.key === 'Enter') { chatInput.focus(); }
 });
 
 window.addEventListener('keyup', (e) => {
@@ -252,8 +247,10 @@ function initiateMobileControlsLoops() {
     document.getElementById('mbtn-fire').addEventListener('touchstart', (e) => { e.preventDefault(); socket.emit('shootWeapon'); });
     document.getElementById('mbtn-wep').addEventListener('touchstart', (e) => {
         e.preventDefault();
-        localActiveWepIdx = (localActiveWepIdx + 1) % 5;
-        socket.emit('switchWeapon', localActiveWepIdx);
+        if (serverGameState.players[myId]) {
+            localActiveWepIdx = (localActiveWepIdx + 1) % serverGameState.players[myId].loadout.length;
+            socket.emit('switchWeapon', localActiveWepIdx);
+        }
     });
     document.getElementById('mbtn-a1').addEventListener('touchstart', (e) => { e.preventDefault(); socket.emit('useAbility', 0); });
     document.getElementById('mbtn-a2').addEventListener('touchstart', (e) => { e.preventDefault(); socket.emit('useAbility', 1); });
@@ -310,7 +307,6 @@ socket.on('playerRespawned', (data) => {
     }
 });
 
-// Real-time Feed & Popup Event Hooks
 socket.on('feedKillMessage', (msg) => {
     const fContainer = document.getElementById('kill-feed-container');
     const item = document.createElement('div');
@@ -355,18 +351,11 @@ socket.on('damageTakenAngle', (angle) => {
 });
 
 socket.on('progressionAwarded', (data) => {
-    clientProgression.xp += data.xp;
     clientProgression.kills += data.kills || 0;
     clientProgression.deaths += data.deaths || 0;
     clientProgression.wins += data.wins || 0;
     clientProgression.rankPoints = Math.max(0, clientProgression.rankPoints + (data.rpChange || 0));
-    
-    while(clientProgression.xp >= clientProgression.level * 1000) {
-        clientProgression.xp -= clientProgression.level * 1000;
-        clientProgression.level++;
-    }
     saveProgressionMetrics();
-    renderCatalogGrids();
 });
 
 socket.on('serverTickUpdate', (data) => {
@@ -449,7 +438,7 @@ function runHighPrecisionClientPrediction(currentFrameTime) {
             let nextX = predictedPos.x + (dx * currentMoveSpeed * dt);
             let nextY = predictedPos.y + (dy * currentMoveSpeed * dt);
 
-            if (p.phaseActive) {
+            if (me.phaseActive) {
                 predictedPos.x = Math.max(10, Math.min(MAP_SIZE - 10, nextX));
                 predictedPos.y = Math.max(10, Math.min(MAP_SIZE - 10, nextY));
             } else {
@@ -469,12 +458,10 @@ function runHighPrecisionClientPrediction(currentFrameTime) {
     }
     requestAnimationFrame(runHighPrecisionClientPrediction);
 }
-requestAnimationFrame(runHighPrecisionClientPrediction);
 
 function checkIfTargetVisible(x1, y1, x2, y2) {
     if (!localGrid || localGrid.length === 0) return true;
     
-    // Evaluate if endpoints reside inside any fog zone field
     if (serverGameState.fields) {
         for(let f of serverGameState.fields) {
             if (f.type === 'smoke') {
@@ -502,7 +489,6 @@ function paintLoop() {
         requestAnimationFrame(paintLoop); return;
     }
 
-    // Accumulate screen shake vector
     let shakeX = 0, shakeY = 0;
     if (screenShakeTimer > 0) {
         shakeX = (Math.random() - 0.5) * 12;
@@ -516,7 +502,6 @@ function paintLoop() {
     ctx.fillStyle = '#11121c'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#1e2030'; ctx.fillRect(oX, oY, MAP_SIZE, MAP_SIZE);
 
-    // Sync state map transformations
     if (serverGameState.mapGrid) localGrid = serverGameState.mapGrid;
 
     for (let x = 0; x < localGrid.length; x++) {
@@ -525,17 +510,16 @@ function paintLoop() {
                 ctx.fillStyle = '#475569';
                 ctx.fillRect(x * GRID_SIZE + oX, y * GRID_SIZE + oY, GRID_SIZE, GRID_SIZE);
                 ctx.strokeStyle = '#334155'; ctx.strokeRect(x * GRID_SIZE + oX, y * GRID_SIZE + oY, GRID_SIZE, GRID_SIZE);
-            } else if (localGrid[x][y] === 2) { // Hazardous Lava Tiles
+            } else if (localGrid[x][y] === 2) {
                 ctx.fillStyle = 'rgba(239, 68, 68, 0.6)';
                 ctx.fillRect(x * GRID_SIZE + oX, y * GRID_SIZE + oY, GRID_SIZE, GRID_SIZE);
-            } else if (localGrid[x][y] === 3) { // Trap Tile
+            } else if (localGrid[x][y] === 3) {
                 ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
                 ctx.fillRect(x * GRID_SIZE + oX, y * GRID_SIZE + oY, GRID_SIZE, GRID_SIZE);
             }
         }
     }
 
-    // Dynamic environment rendering
     if (serverGameState.fields) {
         serverGameState.fields.forEach(f => {
             if (f.type === 'acid') ctx.fillStyle = 'rgba(34,197,94,0.25)';
@@ -547,13 +531,11 @@ function paintLoop() {
         });
     }
 
-    // Storm collapse zone boundary ring
     if (serverGameState.stormRadius) {
         ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 5;
         ctx.beginPath(); ctx.arc(MAP_SIZE/2 + oX, MAP_SIZE/2 + oY, serverGameState.stormRadius, 0, Math.PI*2); ctx.stroke();
     }
 
-    // Spawned Items (Armor / Health / Invuln / Tokens)
     if (serverGameState.items) {
         serverGameState.items.forEach(it => {
             ctx.fillStyle = it.type === 'armor' ? '#38bdf8' : (it.type === 'health' ? '#22c55e' : (it.type === 'invuln' ? '#fbbf24' : '#a855f7'));
@@ -570,7 +552,6 @@ function paintLoop() {
         });
     }
 
-    // Render Replica Decoy Clone
     if (serverGameState.decoys) {
         serverGameState.decoys.forEach(d => {
             if (!checkIfTargetVisible(predictedPos.x, predictedPos.y, d.x, d.y)) return;
@@ -582,7 +563,6 @@ function paintLoop() {
         });
     }
 
-    // Entity player characters
     Object.values(serverGameState.players).forEach(p => {
         if (p.hp <= 0 || (p.cloakActive && p.id !== myId)) return;
         if (p.id !== myId && !checkIfTargetVisible(predictedPos.x, predictedPos.y, p.x, p.y)) return; 
@@ -591,7 +571,7 @@ function paintLoop() {
         ctx.translate((p.id === myId ? predictedPos.x : p.x) + oX, (p.id === myId ? predictedPos.y : p.y) + oY);
         
         let strokeColor = p.isZombie ? '#ea580c' : (p.team === 'red' ? '#ff007f' : '#00f0ff');
-        if (p.isKing) strokeColor = '#f59e0b'; // King Slayer visual accentuation
+        if (p.isKing) strokeColor = '#f59e0b'; 
         ctx.strokeStyle = strokeColor;
         ctx.lineWidth = p.overshield > 0 ? 6 : 4; 
         ctx.fillStyle = '#05060c';
@@ -600,17 +580,14 @@ function paintLoop() {
 
         ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         
-        // Weapon frame pointer rotation
         ctx.rotate(p.id === myId ? inputState.angle : p.angle);
         ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5);
         ctx.restore();
 
-        // Render overhead identifier elements
         ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
         ctx.fillText(`${p.name} (${Math.ceil(p.hp)}HP)`, (p.id === myId ? predictedPos.x : p.x) + oX, (p.id === myId ? predictedPos.y : p.y) + oY - 22);
     });
 
-    // FX layers: Shield Crack Sparks
     for(let i=shieldCracks.length-1; i>=0; i--) {
         let sc = shieldCracks[i]; sc.life -= 1/60;
         if(sc.life <= 0) { shieldCracks.splice(i,1); continue; }
@@ -618,7 +595,6 @@ function paintLoop() {
         ctx.beginPath(); ctx.arc(sc.x + oX, sc.y + oY, 25 * (1 - sc.life), 0, Math.PI*2); ctx.stroke();
     }
 
-    // FX layers: Floating Damage Text Indicators
     for(let i=floatingNumbers.length-1; i>=0; i--) {
         let f = floatingNumbers[i]; f.life -= 1/60; f.y -= 30 * (1/60);
         if (f.life <= 0) { floatingNumbers.splice(i, 1); continue; }
@@ -626,7 +602,6 @@ function paintLoop() {
         ctx.fillText(f.text, f.x + oX, f.y + oY);
     }
 
-    // Overlay Crosshairs HUD Feedback Hitmarker Matrix
     for(let i=hitmarkers.length-1; i>=0; i--) {
         let hm = hitmarkers[i]; hm.life -= 1/60;
         if(hm.life <= 0) { hitmarkers.splice(i,1); continue; }
@@ -635,7 +610,6 @@ function paintLoop() {
         ctx.beginPath(); ctx.moveTo(cx-6, cy-6); ctx.lineTo(cx+6, cy+6); ctx.moveTo(cx+6, cy-6); ctx.lineTo(cx-6, cy+6); ctx.stroke();
     }
 
-    // Directional Damage Vector Indications
     for(let i=directionDamageIndicators.length-1; i>=0; i--) {
         let ind = directionDamageIndicators[i]; ind.life -= 1/60;
         if(ind.life <= 0) { directionDamageIndicators.splice(i,1); continue; }
@@ -647,4 +621,9 @@ function paintLoop() {
 
     requestAnimationFrame(paintLoop);
 }
-requestAnimationFrame(paintLoop);
+
+window.addEventListener('load', () => {
+    fitCanvasToWindow();
+    requestAnimationFrame(runHighPrecisionClientPrediction);
+    requestAnimationFrame(paintLoop);
+});

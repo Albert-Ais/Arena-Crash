@@ -8,16 +8,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const MAP_SIZE = 2000; const GRID_SIZE = 40; const BLOCKS_COUNT = MAP_SIZE / GRID_SIZE;
 
-// Map Initialization Matrix Model Structure Array
 let mapsCatalogDatabase = {};
 function spinUpProceduralSeedMap(mapName) {
     let grid = Array(BLOCKS_COUNT).fill(null).map(() => Array(BLOCKS_COUNT).fill(0));
-    // Hard borders
     for (let i = 0; i < BLOCKS_COUNT; i++) {
         grid[i][0] = 1; grid[i][BLOCKS_COUNT - 1] = 1;
         grid[0][i] = 1; grid[BLOCKS_COUNT - 1][i] = 1;
     }
-    // Random procedural geometry walls
     for (let k = 0; k < 35; k++) {
         let wx = Math.floor(Math.random() * (BLOCKS_COUNT - 8)) + 4;
         let wy = Math.floor(Math.random() * (BLOCKS_COUNT - 8)) + 4;
@@ -26,13 +23,11 @@ function spinUpProceduralSeedMap(mapName) {
             if (horizontal) grid[wx + l][wy] = 1; else grid[wx][wy + l] = 1;
         }
     }
-    // Insert environmental lava zones
     for (let v = 0; v < 6; v++) {
         let lx = Math.floor(Math.random() * (BLOCKS_COUNT - 6)) + 3;
         let ly = Math.floor(Math.random() * (BLOCKS_COUNT - 6)) + 3;
         grid[lx][ly] = 2; grid[lx+1][ly] = 2;
     }
-    // Step trap zones
     for (let t = 0; t < 6; t++) {
         grid[Math.floor(Math.random()*(BLOCKS_COUNT-6))+3][Math.floor(Math.random()*(BLOCKS_COUNT-6))+3] = 3;
     }
@@ -80,13 +75,8 @@ function activateMatchTimerCountdown() {
     matchClockInterval = setInterval(() => {
         if (gameState.state === 'playing') {
             gameState.matchTimer--;
-            
-            // Battle Royale continuous storm ring shrinkage
             if (gameState.stormRadius > 200) gameState.stormRadius -= 4;
-
-            if (gameState.matchTimer <= 0) {
-                concludeServerMatchSession();
-            }
+            if (gameState.matchTimer <= 0) concludeServerMatchSession();
         }
     }, 1000);
 }
@@ -103,7 +93,6 @@ function concludeServerMatchSession() {
         if(gameState.scores.blue > gameState.scores.red && p.team === 'blue') isWin = true;
         
         io.to(p.id).emit('progressionAwarded', {
-            xp: isWin ? 600 : 250,
             wins: isWin ? 1 : 0,
             rpChange: gameState.queueType === 'ranked' ? (isWin ? 25 : -15) : 0
         });
@@ -128,7 +117,7 @@ io.on('connection', (socket) => {
             id: socket.id, name: data.name, device: data.device, clashType: data.clashType, gamemode: data.gamemode,
             x: 200 + Math.random() * 1600, y: 200 + Math.random() * 1600,
             hp: 100, overshield: 50, team: matchmakingQueue.length % 2 === 0 ? 'red' : 'blue', isZombie: false,
-            loadout: data.loadout.slice(0,5), abilities: data.abilities.slice(0,3),
+            loadout: data.loadout, abilities: data.abilities,
             activeWeaponIndex: 0, ammo: 30, maxAmmo: 30, isReloading: false, laserHeat: 0,
             ability1ReadyAt: 0, ability2ReadyAt: 0, ability3ReadyAt: 0,
             stimActiveUntil: 0, cloakActive: false, phaseActive: false, positionAnchored: false,
@@ -141,7 +130,6 @@ io.on('connection', (socket) => {
         gameState.gamemode = data.gamemode;
         gameState.queueType = data.queueType || 'casual';
         
-        // Dynamic map rotation selection
         gameState.mapGrid = mapsCatalogDatabase[Math.random() > 0.5 ? "ALPHA_SECTOR" : "NEON_DISTRICT"];
         socket.emit('roomJoined', { map: gameState.mapGrid });
 
@@ -157,7 +145,6 @@ io.on('connection', (socket) => {
                 gameState.players[patientZero].isZombie = true; gameState.players[patientZero].hp = 240;
             }
 
-            // Initialize moving health zones
             gameState.fields = [
                 { x: 500, y: 500, radius: 90, type: 'moving_heal', life: 999, vx: 40, vy: 20 },
                 { x: 1500, y: 1200, radius: 90, type: 'moving_heal', life: 999, vx: -30, vy: 40 }
@@ -203,7 +190,6 @@ io.on('connection', (socket) => {
 
         let type = p.loadout[p.activeWeaponIndex];
         
-        // Energy overheat processing logic for short-range emitters
         if (type === 'laser_beam') {
             if (p.laserHeat >= 100) return;
             p.laserHeat = Math.min(100, p.laserHeat + 14);
@@ -213,8 +199,6 @@ io.on('connection', (socket) => {
         }
 
         let pAngle = p.angle;
-        
-        // Recoil displacement offset application loop
         pAngle += (Math.random() - 0.5) * 0.06;
 
         let baseDmg = 14;
@@ -227,7 +211,6 @@ io.on('connection', (socket) => {
             type: 'standard', dmg: baseDmg, armorPen: false 
         };
 
-        // Mechanical updates map configurations
         if (type === 'railgun') {
             bulletModel.vx *= 2.2; bulletModel.dmg = 32; bulletModel.armorPen = true;
         } else if (type === 'chaingun') {
@@ -266,7 +249,6 @@ io.on('connection', (socket) => {
         } else if (name === 'stim') {
             p.stimActiveUntil = now + 4000; p.hp = Math.min(100, p.hp + 25);
         } else if (name === 'decoy') {
-            // Decoy replica mirrors the source position and vectors away to draw aggro
             gameState.decoys.push({ x: p.x, y: p.y, vx: Math.cos(p.angle + Math.PI)*200, vy: Math.sin(p.angle + Math.PI)*200, angle: p.angle + Math.PI, life: 5.0, ownerId: p.id });
         } else if (name === 'shield') {
             p.shieldActiveUntil = now + 4000; p.overshield = Math.min(100, p.overshield + 40);
@@ -287,12 +269,10 @@ io.on('connection', (socket) => {
     });
 });
 
-// Primary Server Processing Tick Rate Frame Update
 setInterval(() => {
     let dt = 1 / 60;
     if (gameState.state !== 'playing') return;
 
-    // Decoy mirror lifetime update frames
     if (gameState.decoys) {
         for (let i = gameState.decoys.length - 1; i >= 0; i--) {
             let d = gameState.decoys[i]; d.life -= dt;
@@ -304,7 +284,6 @@ setInterval(() => {
         }
     }
 
-    // Environmental zone shifts
     gameState.fields.forEach(f => {
         if (f.type === 'moving_heal') {
             f.x += f.vx * dt; f.y += f.vy * dt;
@@ -325,29 +304,25 @@ setInterval(() => {
         }
     });
 
-    // Check world state hazard intersections
     Object.values(gameState.players).forEach(p => {
         if(p.hp <= 0) return;
         let gx = Math.floor(p.x / GRID_SIZE);
         let gy = Math.floor(p.y / GRID_SIZE);
         if (gameState.mapGrid[gx] && gameState.mapGrid[gx][gy] === 2 && p.invulnUntil < Date.now()) {
-            p.hp -= 25 * dt; // Lava Damage
+            p.hp -= 25 * dt; 
         }
         if (gameState.mapGrid[gx] && gameState.mapGrid[gx][gy] === 3 && p.invulnUntil < Date.now()) {
-            p.hp -= 5; gameState.mapGrid[gx][gy] = 0; // Trigger spike traps
+            p.hp -= 5; gameState.mapGrid[gx][gy] = 0; 
         }
 
-        // Apply continuous ticking decay on laser weapon mechanics
         if(p.laserHeat > 0) p.laserHeat = Math.max(0, p.laserHeat - 30 * dt);
 
-        // Continuous outer storm boundary collapse damages
         let distFromCenter = Math.hypot(p.x - MAP_SIZE/2, p.y - MAP_SIZE/2);
         if (distFromCenter > gameState.stormRadius && p.invulnUntil < Date.now()) {
             p.hp -= 10 * dt;
         }
     });
 
-    // Pickups item management systems
     for(let i = gameState.items.length - 1; i >= 0; i--) {
         let it = gameState.items[i];
         Object.values(gameState.players).forEach(p => {
@@ -361,7 +336,6 @@ setInterval(() => {
         });
     }
 
-    // Bullet loop management systems
     for (let i = gameState.bullets.length - 1; i >= 0; i--) {
         let b = gameState.bullets[i]; b.life -= dt;
         
@@ -391,26 +365,21 @@ setInterval(() => {
             gameState.bullets.splice(i, 1); continue;
         }
 
-        // Damage resolution calculation matrices
         Object.values(gameState.players).forEach(p => {
             if (p.hp > 0 && p.id !== b.ownerId && Math.hypot(p.x - b.x, p.y - b.y) < 22) {
                 if (p.cloakActive || p.invulnUntil > Date.now()) return;
 
-                // Log hit interaction mapping for assistance awards tracking
                 p.assistPool[b.ownerId] = Date.now();
 
-                // Compute headshot and critical calculation multipliers
                 let isHead = Math.random() < 0.15;
                 let isCrit = Math.random() < 0.10;
                 let finalDmg = b.dmg;
                 if (isHead) finalDmg *= 1.5;
                 if (isCrit) finalDmg *= 1.3;
 
-                // Fire redirection notification angles
                 let tAngle = Math.atan2(b.vy, b.vx) + Math.PI;
                 io.to(p.id).emit('damageTakenAngle', tAngle);
 
-                // Shield / Overshield degradation filters
                 if (p.overshield > 0 && !b.armorPen) {
                     p.overshield -= finalDmg;
                     if (p.overshield <= 0) {
@@ -421,10 +390,8 @@ setInterval(() => {
                     p.hp -= finalDmg;
                 }
 
-                // Complete hitmaker notification sync mechanics
                 io.to(b.ownerId).emit('hitFeedback', { x: p.x, y: p.y, dmg: Math.ceil(finalDmg), isHead, isCrit, heavy: finalDmg > 30 });
 
-                // Check condition logic models for Last Stand passives
                 if (p.hp <= 10 && p.hp > 0 && !p.lastStandActive) {
                     p.lastStandActive = true; p.hp = 10;
                     p.invulnUntil = Date.now() + 2000; 
@@ -436,7 +403,6 @@ setInterval(() => {
                         killer.killstreak++;
                         if (killer.team === 'red') gameState.scores.red++; else gameState.scores.blue++;
                         
-                        // Push system global announcement streams
                         io.emit('feedKillMessage', `${killer.name} [ELIMINATED] ${p.name}`);
                         io.to(killer.id).emit('popupAnnouncement', { elim: `YOU ELIMINATED ${p.name}` });
                         
@@ -444,29 +410,24 @@ setInterval(() => {
                             io.emit('popupAnnouncement', { streak: `${killer.name} IS ON A ${killer.killstreak} KILL STREAK!` });
                         }
 
-                        // Apply tactical boost upgrades after secure confirmations
                         killer.killBuffUntil = Date.now() + 3000;
                         killer.overshield = Math.min(100, killer.overshield + 25);
 
-                        // Gun Game structural index shifting updates
                         if (gameState.gamemode === 'GUNGAME') {
                             killer.activeWeaponIndex = (killer.activeWeaponIndex + 1) % killer.loadout.length;
                         }
 
-                        // Award direct profile progression currencies
-                        io.to(killer.id).emit('progressionAwarded', { xp: 300, kills: 1 });
+                        io.to(killer.id).emit('progressionAwarded', { kills: 1 });
 
-                        // Distribute points to eligible assistants
                         Object.keys(p.assistPool).forEach(aid => {
                             if (aid !== killer.id && Date.now() - p.assistPool[aid] < 4000) {
-                                io.to(aid).emit('progressionAwarded', { xp: 100 });
+                                io.to(aid).emit('progressionAwarded', {});
                             }
                         });
                     }
 
-                    io.to(p.id).emit('progressionAwarded', { xp: 100, deaths: 1 });
+                    io.to(p.id).emit('progressionAwarded', { deaths: 1 });
 
-                    // Revive structural validations logic parameters
                     if (p.reviveTokens > 0 && gameState.gamemode !== 'FFA') {
                         p.reviveTokens--; p.hp = 50; p.lastStandActive = false;
                     } else {
@@ -483,7 +444,6 @@ setInterval(() => {
         });
     }
 
-    // Resolve player alignment velocity positions loops
     Object.values(gameState.players).forEach(p => {
         if (p.hp <= 0 || p.positionAnchored) return;
         let input = p.lastInputState; let dx = 0; let dy = 0;
