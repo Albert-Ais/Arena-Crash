@@ -13,17 +13,17 @@ for (let i = 0; i < BLOCKS_COUNT; i++) {
     currentGrid[i][0] = 1; currentGrid[i][BLOCKS_COUNT - 1] = 1;
     currentGrid[0][i] = 1; currentGrid[BLOCKS_COUNT - 1][i] = 1;
 }
-for (let k = 0; k < 30; k++) {
+for (let k = 0; k < 25; k++) {
     let wx = Math.floor(Math.random() * (BLOCKS_COUNT - 8)) + 4;
     let wy = Math.floor(Math.random() * (BLOCKS_COUNT - 8)) + 4;
     let horiz = Math.random() > 0.5;
-    for (let l = 0; l < 6; l++) { if (horiz) currentGrid[wx + l][wy] = 1; else currentGrid[wx][wy + l] = 1; }
+    for (let l = 0; l < 5; l++) { if (horiz) currentGrid[wx + l][wy] = 1; else currentGrid[wx][wy + l] = 1; }
 }
 
 let gameState = { 
-    players: {}, decoys: [], bullets: [], fields: [], items: [],
+    players: {}, decoys: [], bullets: [],
     scores: { red: 0, blue: 0 }, state: 'lobby', matchTimer: 180, 
-    gamemode: 'TDM', mapGrid: currentGrid, queueType: 'casual'
+    gamemode: 'TDM', mapGrid: currentGrid
 };
 
 let matchmakingQueue = [];
@@ -68,7 +68,6 @@ function processRestartMatchVerification() {
     let readyCount = Object.keys(intermissionResponses).length;
     
     if (readyCount >= activePlayerIds.length && activePlayerIds.length > 0) {
-        // Reset dynamic state objects for new round execution
         gameState.bullets = [];
         gameState.decoys = [];
         gameState.matchTimer = 180;
@@ -162,15 +161,15 @@ io.on('connection', (socket) => {
 
     socket.on('shootWeapon', () => {
         let p = gameState.players[socket.id];
-        if (!p || p.hp <= 0 || p.invisibleActive) return; // Cannot fire weapons while invisible in decoy mode
+        if (!p || p.hp <= 0 || p.invisibleActive) return; 
 
         if (p.ammo <= 0 || p.isReloading) return;
         p.ammo--;
 
         let bulletModel = { 
             x: p.x + Math.cos(p.angle)*22, y: p.y + Math.sin(p.angle)*22, 
-            vx: Math.cos(p.angle)*700, vy: Math.sin(p.angle)*700, 
-            radius: 4, ownerId: p.id, life: 1.8, dmg: 20 
+            vx: Math.cos(p.angle)*750, vy: Math.sin(p.angle)*750, 
+            radius: 4, ownerId: p.id, life: 1.5, dmg: 18 
         };
         gameState.bullets.push(bulletModel);
     });
@@ -178,9 +177,10 @@ io.on('connection', (socket) => {
     socket.on('useAbility', (slotIdx) => {
         let p = gameState.players[socket.id]; if (!p || p.hp <= 0 || gameState.state !== 'playing') return;
         let name = p.abilities[slotIdx]; let now = Date.now(); let readyProp = `ability${slotIdx + 1}ReadyAt`;
-        if (now < p[readyProp]) return; p[readyProp] = now + 14000;
+        if (now < p[readyProp]) return; p[readyProp] = now + 15000;
 
-        if (name === 'abil_3') { // Controllable Decoy System Core mapping
+        // Controlled Decoy Matrix is mapping key value ID: 'abil_45'
+        if (name === 'abil_45') { 
             let cloneId = 'decoy_' + socket.id + '_' + Date.now();
             p.invisibleActive = true;
             p.controllingDecoyId = cloneId;
@@ -190,7 +190,6 @@ io.on('connection', (socket) => {
                 x: p.x, y: p.y, angle: p.angle, life: 10.0
             });
 
-            // Revert state variables automatically after 10-second duration expires
             setTimeout(() => {
                 let targetPlayer = gameState.players[socket.id];
                 if (targetPlayer && targetPlayer.controllingDecoyId === cloneId) {
@@ -200,8 +199,7 @@ io.on('connection', (socket) => {
                 }
             }, 10 * 1000);
         } else {
-            // General backup core activation logic
-            p.hp = Math.min(100, p.hp + 15);
+            p.hp = Math.min(100, p.hp + 20);
         }
     });
 
@@ -217,7 +215,6 @@ setInterval(() => {
     let dt = 1 / 60;
     if (gameState.state !== 'playing') return;
 
-    // Separate input processing loop specifically routing control vector properties if decoy override properties are found
     Object.values(gameState.players).forEach(p => {
         if (p.hp <= 0) return;
         let input = p.lastInputState;
@@ -268,7 +265,7 @@ setInterval(() => {
                     let killer = gameState.players[b.ownerId];
                     if (killer) {
                         if (killer.team === 'red') gameState.scores.red++; else gameState.scores.blue++;
-                        io.emit('feedKillMessage', `${killer.name} [ELIMINATED] ${p.name}`);
+                        io.emit('feedKillMessage', `${killer.name} killed ${p.name}`);
                     }
                     setTimeout(() => {
                         p.x = 200 + Math.random() * 1600; p.y = 200 + Math.random() * 1600;
@@ -284,4 +281,4 @@ setInterval(() => {
 }, 1000 / 60);
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => { console.log(`MATRIX SELECTION ENGINE ONLINE ON PORT ${PORT}`); });
+http.listen(PORT, () => { console.log(`MATRIX CORE SYSTEM RUNNING ON PORT ${PORT}`); });

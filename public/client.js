@@ -7,7 +7,7 @@ window.addEventListener('resize', fitCanvasToWindow); fitCanvasToWindow();
 
 const MAP_SIZE = 2000; const GRID_SIZE = 40;
 let myId = null; let localGrid = [];
-let serverGameState = { players: {}, decoys: [], bullets: [], fields: [], items: [], breakables: {}, scores: { red: 0, blue: 0 }, state: 'lobby', matchTimer: 180 };
+let serverGameState = { players: {}, decoys: [], bullets: [], items: [], scores: { red: 0, blue: 0 }, state: 'lobby', matchTimer: 180 };
 let camera = { x: 1000, y: 1000 }; 
 let inputState = { w: false, a: false, s: false, d: false, angle: 0 };
 
@@ -18,59 +18,129 @@ let selectedDeviceProfile = 'pc';
 let localActiveWepIdx = 0;
 let isInIntermissionSelection = false;
 
-let floatingNumbers = [];
-let hitmarkers = [];
-let screenShakeTimer = 0;
-let directionDamageIndicators = [];
-let shieldCracks = [];
+// Exactly 50 Named and Categorized Weapons Data Array
+const WEAPONS_CATALOG = [
+    // Energy Weapons
+    { id: "wep_1", group: "Energy", title: "Chain Lightning Cannon", desc: "Hits one enemy, jumps to nearby enemies." },
+    { id: "wep_2", group: "Energy", title: "Prism Rifle", desc: "Bullet splits into 3 after traveling." },
+    { id: "wep_3", group: "Energy", title: "Photon Spear", desc: "Pierces every player in a line." },
+    { id: "wep_4", group: "Energy", title: "Pulse Blaster", desc: "Creates expanding damage rings." },
+    { id: "wep_5", group: "Energy", title: "Energy Shredder", desc: "Damage increases the longer you hold fire." },
+    // Ricochet Weapons
+    { id: "wep_6", group: "Ricochet", title: "Mirror Cannon", desc: "Bullets bounce toward nearest enemy after wall hit." },
+    { id: "wep_7", group: "Ricochet", title: "Pinball Launcher", desc: "Projectiles bounce many times." },
+    { id: "wep_8", group: "Ricochet", title: "Reflector Gun", desc: "Shots become stronger after every bounce." },
+    { id: "wep_9", group: "Ricochet", title: "Corner Sniper", desc: "Designed to bank shots around walls." },
+    { id: "wep_10", group: "Ricochet", title: "Chaos Ricochet", desc: "Random bounce directions." },
+    // Area Control Weapons
+    { id: "wep_11", group: "Area Control", title: "Spike Mine Launcher", desc: "Places hidden mines." },
+    { id: "wep_12", group: "Area Control", title: "Flame Thrower", desc: "Creates fire patches." },
+    { id: "wep_13", group: "Area Control", title: "Cryo Bomb", desc: "Creates slowing ice field." },
+    { id: "wep_14", group: "Area Control", title: "Tesla Tower Gun", desc: "Deploys temporary electric turret." },
+    { id: "wep_15", group: "Area Control", title: "Acid Sprayer", desc: "Leaves toxic puddles." },
+    // Movement-Based Weapons
+    { id: "wep_16", group: "Movement", title: "Boomerang Blade", desc: "Returns to shooter." },
+    { id: "wep_17", group: "Movement", title: "Orbit Cannon", desc: "Projectiles circle player." },
+    { id: "wep_18", group: "Movement", title: "Momentum Rifle", desc: "More damage while moving fast." },
+    { id: "wep_19", group: "Movement", title: "Anchor Cannon", desc: "Temporarily roots enemy." },
+    { id: "wep_20", group: "Movement", title: "Dash Shotgun", desc: "Fires automatically during dash." },
+    // Weird Weapons
+    { id: "wep_21", group: "Weird", title: "Portal Gun", desc: "Bullet enters one portal and exits another." },
+    { id: "wep_22", group: "Weird", title: "Swap Rifle", desc: "Swaps positions with target." },
+    { id: "wep_23", group: "Weird", title: "Time Shot", desc: "Bullet pauses then resumes." },
+    { id: "wep_24", group: "Weird", title: "Reverse Gun", desc: "Pulls enemies toward projectile." },
+    { id: "wep_25", group: "Weird", title: "Clone Cannon", desc: "Bullet duplicates mid-flight." },
+    // Crowd-Control Weapons
+    { id: "wep_26", group: "Crowd Control", title: "Magnet Launcher", desc: "Pulls nearby bullets." },
+    { id: "wep_27", group: "Crowd Control", title: "EMP Rifle", desc: "Disables abilities briefly." },
+    { id: "wep_28", group: "Crowd Control", title: "Shock Net", desc: "Traps enemies temporarily." },
+    { id: "wep_29", group: "Crowd Control", title: "Gravity Cage", desc: "Creates temporary prison field." },
+    { id: "wep_30", group: "Crowd Control", title: "Silence Beam", desc: "Prevents ability use." },
+    // Precision Weapons
+    { id: "wep_31", group: "Precision", title: "Burst Sniper", desc: "Fires 3 rapid sniper rounds." },
+    { id: "wep_32", group: "Precision", title: "Charge Rifle", desc: "Hold for more damage." },
+    { id: "wep_33", group: "Precision", title: "Rail Burst", desc: "Fires 5 tiny rail shots." },
+    { id: "wep_34", group: "Precision", title: "Hunter Rifle", desc: "Marks target for bonus damage." },
+    { id: "wep_35", group: "Precision", title: "Execution Revolver", desc: "Extra damage below 30 HP." },
+    // Summon Weapons
+    { id: "wep_36", group: "Summon", title: "Drone Launcher", desc: "Summons attack drone." },
+    { id: "wep_37", group: "Summon", title: "Spider Bot Cannon", desc: "Deploys crawling explosive bots." },
+    { id: "wep_38", group: "Summon", title: "Nano Swarm", desc: "Releases tracking micro-drones." },
+    { id: "wep_39", group: "Summon", title: "Orbital Beacon", desc: "Calls down energy strikes." },
+    { id: "wep_40", group: "Summon", title: "Guardian Core", desc: "Summons defensive turret." },
+    // High-Risk Weapons
+    { id: "wep_41", group: "High Risk", title: "Blood Cannon", desc: "Costs HP to fire." },
+    { id: "wep_42", group: "High Risk", title: "Overload Rifle", desc: "Damage increases, but overheats." },
+    { id: "wep_43", group: "High Risk", title: "Berserker Launcher", desc: "Stronger at low HP." },
+    { id: "wep_44", group: "High Risk", title: "Unstable Reactor", desc: "Massive damage, chance to explode near user." },
+    { id: "wep_45", group: "High Risk", title: "Glass Cannon", desc: "Huge damage but lowers your armor." },
+    // Boss-Level Weapons
+    { id: "wep_46", group: "Boss Level", title: "Black Hole Cannon", desc: "Creates a powerful gravity vortex." },
+    { id: "wep_47", group: "Boss Level", title: "Meteor Launcher", desc: "Calls falling projectiles from sky." },
+    { id: "wep_48", group: "Boss Level", title: "Void Beam", desc: "Damages through walls." },
+    { id: "wep_49", group: "Boss Level", title: "Apocalypse Cannon", desc: "Huge slow projectile splitting repeatedly." },
+    { id: "wep_50", group: "Boss Level", title: "Reality Breaker", desc: "Temporarily distorts bullets, players, and fields." }
+];
 
-// Catalog containing exactly 50 distinct weapon configurations
-const WEAPONS_CATALOG = [];
-for (let i = 1; i <= 50; i++) {
-    let typeName = "Standard Weapon Core";
-    if (i === 1) typeName = "Hitscan Railgun Engine";
-    if (i === 2) typeName = "AP Automatic Chaingun";
-    if (i === 3) typeName = "Scatter-Spread Shotgun Module";
-    if (i === 4) typeName = "Heavy Kinetic Revolver";
-    if (i === 5) typeName = "Bouncing Ricochet Sniper";
-    if (i === 6) typeName = "Napalm Thermal Injector";
-    if (i === 7) typeName = "Tracking Seeker Missile";
-    if (i === 8) typeName = "Bouncing Sawblade Launcher";
-    if (i === 9) typeName = "Homing Plasma Battery";
-    if (i === 10) typeName = "Structural Micro-Nuke Lobber";
-    
-    WEAPONS_CATALOG.push({
-        id: `wep_${i}`,
-        title: i <= 10 ? typeName : `Weapon Core Variant Mark ${i}`,
-        desc: `Tactical ballistic system emitting damage frequency signatures aligned to slot profile entry ${i}.`
-    });
-}
-
-// Catalog containing exactly 50 distinct ability configurations
-const ABILITIES_CATALOG = [];
-for (let i = 1; i <= 50; i++) {
-    let typeName = "Utility Ability core";
-    if (i === 1) typeName = "Blink Coordinate Flasher";
-    if (i === 2) typeName = "Vitals Recovery Stimulant";
-    if (i === 3) typeName = "Controllable Decoy Clone Matrix";
-    if (i === 4) typeName = "Deflect Shield Matrix Barrier";
-    if (i === 5) typeName = "Sight-Obscuring Smoke Emitter";
-    if (i === 6) typeName = "Radar Position Locator";
-    if (i === 7) typeName = "Weapon Speed Overdrive Booster";
-    if (i === 8) typeName = "Phase Shift Dimensional Bypass";
-    
-    ABILITIES_CATALOG.push({
-        id: `abil_${i}`,
-        title: i <= 8 ? typeName : `Ability Core Sub-Routine ${i}`,
-        desc: `Modular utility core component executing dynamic sequence matrix protocols within grid slot ${i}.`
-    });
-}
-
-window.evaluateZombieConstraints = function() {
-    let mode = document.getElementById('gamemode-pref').value;
-    let clashBox = document.getElementById('clash-type-pref');
-    if (mode === 'ZOMBIE' && (clashBox.value === '1v1')) clashBox.value = '3v3';
-};
+// Exactly 50 Named and Categorized Abilities Data Array
+const ABILITIES_CATALOG = [
+    // Support/Healing
+    { id: "abil_1", group: "Support", title: "Emergency Repair", desc: "Instantly restores 40 HP." },
+    { id: "abil_2", group: "Support", title: "Nano Regeneration", desc: "Gradually restores HP over 8 seconds." },
+    { id: "abil_3", group: "Support", title: "Healing Beacon", desc: "Deploys a beacon that heals nearby teammates." },
+    { id: "abil_4", group: "Support", title: "Lifesteal Surge", desc: "Converts 30% of damage dealt into health for 5 seconds." },
+    { id: "abil_5", group: "Support", title: "Guardian Angel", desc: "Prevents one fatal hit and restores 25 HP." },
+    // Mobility
+    { id: "abil_6", group: "Mobility", title: "Hyper Sprint", desc: "Boosts movement speed by 75% for 4 seconds." },
+    { id: "abil_7", group: "Mobility", title: "Rocket Dash", desc: "Launches you forward at high speed." },
+    { id: "abil_8", group: "Mobility", title: "Blink Chain", desc: "Allows three short-range teleports in quick succession." },
+    { id: "abil_9", group: "Mobility", title: "Warp Tunnel", desc: "Creates two linked portals that players can travel through." },
+    { id: "abil_10", group: "Mobility", title: "Ghost Walk", desc: "Pass through players and objects for 5 seconds." },
+    { id: "abil_11", group: "Mobility", title: "Time Skip", desc: "Instantly teleport to a targeted nearby location." },
+    { id: "abil_12", group: "Mobility", title: "Slipstream", desc: "Leaves behind speed-boost trails for allies." },
+    { id: "abil_13", group: "Mobility", title: "Speed Steal", desc: "Steals movement speed from a nearby enemy." },
+    { id: "abil_14", group: "Mobility", title: "Teleport Burst", desc: "Randomly teleports you a short distance." },
+    { id: "abil_15", group: "Mobility", title: "Momentum Drive", desc: "Continuously increases speed while moving." },
+    // Defensive
+    { id: "abil_16", group: "Defensive", title: "Armor Core", desc: "Grants 50 temporary armor points." },
+    { id: "abil_17", group: "Defensive", title: "Reactive Armor", desc: "Reflects 25% of incoming damage back to attackers." },
+    { id: "abil_18", group: "Defensive", title: "Energy Barrier", desc: "Deploys a large dome that blocks enemy projectiles." },
+    { id: "abil_19", group: "Defensive", title: "Deflection Matrix", desc: "Randomly redirects incoming bullets away from you." },
+    { id: "abil_20", group: "Defensive", title: "Damage Absorber", desc: "Stores incoming damage as shield energy." },
+    { id: "abil_21", group: "Defensive", title: "Fortified Hull", desc: "Reduces incoming damage by 50% for 4 seconds." },
+    { id: "abil_22", group: "Defensive", title: "Bullet Shield", desc: "Creates a rotating shield that destroys bullets." },
+    { id: "abil_23", group: "Defensive", title: "Reflective Dome", desc: "Reflects enemy projectiles back toward owners." },
+    { id: "abil_24", group: "Defensive", title: "Adaptive Armor", desc: "Increases damage resistance each time you are hit." },
+    { id: "abil_25", group: "Defensive", title: "Emergency Evade", desc: "Automatically dashes away when HP becomes critically low." },
+    // Offensive
+    { id: "abil_26", group: "Offensive", title: "Bloodlust", desc: "Gain bonus damage after every elimination." },
+    { id: "abil_27", group: "Offensive", title: "Execution Protocol", desc: "Deal increased damage to enemies below 30% HP." },
+    { id: "abil_28", group: "Offensive", title: "Mark Target", desc: "Marks an enemy, causing them to take extra damage." },
+    { id: "abil_29", group: "Offensive", title: "Weakness Curse", desc: "Reduces an enemy's damage output for several seconds." },
+    { id: "abil_30", group: "Offensive", title: "Chain Detonation", desc: "Defeated enemies explode and damage nearby opponents." },
+    { id: "abil_31", group: "Offensive", title: "Overcharge", desc: "Your next attack deals triple damage." },
+    { id: "abil_32", group: "Offensive", title: "Critical Focus", desc: "Guarantees a critical hit on your next shot." },
+    { id: "abil_33", group: "Offensive", title: "Hunter Mode", desc: "Highlights wounded enemies through walls." },
+    { id: "abil_34", group: "Offensive", title: "Armor Breaker", desc: "Temporarily ignores a portion of enemy armor." },
+    { id: "abil_35", group: "Offensive", title: "Death Mark", desc: "Revealed and takes increased damage from all sources." },
+    // Tactical
+    { id: "abil_36", group: "Tactical", title: "Sensor Jammer", desc: "Disrupts enemy radar and tracking abilities." },
+    { id: "abil_37", group: "Tactical", title: "EMP Blast", desc: "Disables enemy abilities within a radius." },
+    { id: "abil_38", group: "Tactical", title: "Vision Hack", desc: "Reveals enemy locations for a short time." },
+    { id: "abil_39", group: "Tactical", title: "Recon Drone", desc: "Deploys a scouting drone that spots enemies." },
+    { id: "abil_40", group: "Tactical", title: "Tracking Beacon", desc: "Attach a tracker to an enemy and reveal position." },
+    { id: "abil_41", group: "Tactical", title: "Signal Scramble", desc: "Prevents enemies from receiving radar info." },
+    { id: "abil_42", group: "Tactical", title: "Mimic", desc: "Copies the last ability used by a nearby enemy." },
+    { id: "abil_43", group: "Tactical", title: "Ability Refresh", desc: "Instantly reduces all cooldown timers." },
+    { id: "abil_44", group: "Tactical", title: "Enemy Scan", desc: "Displays nearby enemies, health, and active effects." },
+    { id: "abil_45", group: "Tactical", title: "Controlled Decoy Matrix", desc: "Spawn a clone for 10s you control. You turn invisible!" },
+    // Area Control
+    { id: "abil_46", group: "Area Control", title: "Turret Deployment", desc: "Places an automated turret that attacks enemies." },
+    { id: "abil_47", group: "Area Control", title: "Mine Field", desc: "Deploys several hidden explosive mines." },
+    { id: "abil_48", group: "Area Control", title: "Gravity Prison", desc: "Creates a field that traps and slows enemies." },
+    { id: "abil_49", group: "Area Control", title: "Toxic Cloud", desc: "Releases a large poisonous gas cloud over time." },
+    { id: "abil_50", group: "Area Control", title: "Orbital Strike", desc: "Calls down a powerful delayed strike on target area." }
+];
 
 window.assignActiveHardwareProfile = function(profileType) {
     selectedDeviceProfile = profileType;
@@ -78,13 +148,14 @@ window.assignActiveHardwareProfile = function(profileType) {
     document.getElementById(`dev-prof-${profileType}`).classList.add('active');
 };
 
-function renderCatalogGrids() {
+function renderCatalogLayouts() {
     document.getElementById('weapons-placement-grid').innerHTML = WEAPONS_CATALOG.map(w => `
         <div class="card">
             <label>
                 <input type="checkbox" class="wep-chk" value="${w.id}"> 
                 <span class="card-title" style="color:#fbbf24;">${w.title}</span>
             </label>
+            <div class="card-text" style="color: #818cf8; font-size:9px; margin-top:2px;">[${w.group}]</div>
             <div class="card-text">${w.desc}</div>
         </div>
     `).join('');
@@ -95,11 +166,12 @@ function renderCatalogGrids() {
                 <input type="checkbox" class="abil-chk" value="${a.id}"> 
                 <span class="card-title" style="color:#00ff66;">${a.title}</span>
             </label>
+            <div class="card-text" style="color: #a78bfa; font-size:9px; margin-top:2px;">[${a.group}]</div>
             <div class="card-text">${a.desc}</div>
         </div>
     `).join('');
 }
-renderCatalogGrids();
+renderCatalogLayouts();
 
 function applyLimitRules(className, maxAllowed) {
     document.querySelectorAll(`.${className}`).forEach(box => {
@@ -110,11 +182,13 @@ function applyLimitRules(className, maxAllowed) {
 }
 applyLimitRules('wep-chk', 5); applyLimitRules('abil-chk', 3);
 
-// Auto-check standard layouts initially
+// Auto-check defaults to make entry streamlined
 let wChks = document.querySelectorAll('.wep-chk');
 for(let i=0; i<5; i++) if(wChks[i]) wChks[i].checked = true;
 let aChks = document.querySelectorAll('.abil-chk');
-for(let i=0; i<3; i++) if(aChks[i]) aChks[i].checked = true;
+if(aChks[44]) aChks[44].checked = true; // Auto-select controlled decoy clone core
+if(aChks[0]) aChks[0].checked = true;
+if(aChks[5]) aChks[5].checked = true;
 
 function collectLoadoutSelection() {
     let chosenWeps = []; document.querySelectorAll('.wep-chk:checked').forEach(e => chosenWeps.push(e.value));
@@ -124,7 +198,7 @@ function collectLoadoutSelection() {
 
 document.getElementById('dispatch-queue-btn').addEventListener('click', () => {
     let loadout = collectLoadoutSelection();
-    if (loadout.weapons.length === 0 || loadout.abilities.length === 0) return alert("Select at least 1 weapon and 1 ability.");
+    if (loadout.weapons.length === 0 || loadout.abilities.length === 0) return alert("Select at least 1 weapon and 1 ability node.");
     
     document.getElementById('setup-terminal').classList.add('hidden');
     
@@ -136,7 +210,7 @@ document.getElementById('dispatch-queue-btn').addEventListener('click', () => {
     if (isInIntermissionSelection) {
         socket.emit('submitIntermissionLoadoutChange', { loadout: loadout.weapons, abilities: loadout.abilities });
         document.getElementById('round-intermission-terminal').classList.remove('hidden');
-        document.getElementById('intermission-wait-status').innerText = "Loadout updated. Waiting for match restart...";
+        document.getElementById('intermission-wait-status').innerText = "Loadout updated! Awaiting match restart synchronization...";
         isInIntermissionSelection = false;
     } else {
         socket.emit('joinQueue', {
@@ -156,13 +230,13 @@ document.getElementById('intermission-keep-btn').addEventListener('click', () =>
     socket.emit('submitIntermissionKeepLoadout');
     document.getElementById('intermission-keep-btn').disabled = true;
     document.getElementById('intermission-change-btn').disabled = true;
-    document.getElementById('intermission-wait-status').innerText = "Confirmed. Waiting for other operators...";
+    document.getElementById('intermission-wait-status').innerText = "Confirmed. Waiting for other operators to complete choices...";
 });
 
 document.getElementById('intermission-change-btn').addEventListener('click', () => {
     document.getElementById('round-intermission-terminal').classList.add('hidden');
     document.getElementById('setup-terminal').classList.remove('hidden');
-    document.getElementById('setup-title').innerText = "RE-CONFIGURE LOADOUT VECTOR";
+    document.getElementById('setup-title').innerText = "RE-CONFIGURE ARCHITECTURE VECTOR";
     isInIntermissionSelection = true;
 });
 
@@ -329,29 +403,13 @@ socket.on('feedKillMessage', (msg) => {
     const fContainer = document.getElementById('kill-feed-container');
     const item = document.createElement('div'); item.className = 'feed-item'; item.innerText = msg;
     fContainer.appendChild(item);
-    if(fContainer.children.length > 5) fContainer.removeChild(fContainer.children[0]);
+    if(fContainer.children.length > 4) fContainer.removeChild(fContainer.children[0]);
     setTimeout(() => { if (item.parentNode) item.parentNode.removeChild(item); }, 4000);
 });
 
-socket.on('popupAnnouncement', (data) => {
-    const pContainer = document.getElementById('announcement-popup-layer'); pContainer.innerHTML = '';
-    if (data.streak) {
-        const d = document.createElement('div'); d.className = 'streak-msg'; d.innerText = data.streak; pContainer.appendChild(d);
-    }
-    if (data.elim) {
-        const d = document.createElement('div'); d.className = 'elim-msg'; d.innerText = data.elim; pContainer.appendChild(d);
-    }
-    setTimeout(() => { pContainer.innerHTML = ''; }, 2500);
-});
-
 socket.on('hitFeedback', (data) => {
-    hitmarkers.push({ life: 0.15 });
-    if(data.heavy) screenShakeTimer = 0.25;
-    floatingNumbers.push({ x: data.x, y: data.y - 15, text: `${data.dmg}`, color: '#ffffff', life: 0.6 });
+    serverGameState.bullets.push({ x: data.x, y: data.y - 20, radius: 2, color: '#ff0055', life: 0.1 });
 });
-
-socket.on('shieldCrackFX', (data) => { shieldCracks.push({ x: data.x, y: data.y, life: 0.4 }); });
-socket.on('damageTakenAngle', (angle) => { directionDamageIndicators.push({ angle: angle, life: 0.5 }); });
 
 socket.on('serverTickUpdate', (data) => {
     serverGameState = data;
@@ -367,26 +425,37 @@ socket.on('serverTickUpdate', (data) => {
         document.getElementById('hp-display').innerText = `VITALS: ${Math.ceil(me.hp)}%`;
         document.getElementById('shield-display').innerText = `OVERSHIELD: ${Math.ceil(me.overshield)}%`;
         
-        let activeWep = me.loadout[me.activeWeaponIndex] || 'None';
-        document.getElementById('active-wep-line').innerText = `WEAPON: ${activeWep.toUpperCase()}`;
+        let targetId = me.loadout[me.activeWeaponIndex];
+        let wepObj = WEAPONS_CATALOG.find(w => w.id === targetId);
+        let activeWepName = wepObj ? wepObj.title : 'System Unknown';
+        
+        document.getElementById('active-wep-line').innerText = `WEAPON: ${activeWepName.toUpperCase()}`;
         document.getElementById('ammo-line').innerText = me.isReloading ? "MAG CAP: RELOADING..." : `MAG CAP: ${me.ammo} / ${me.maxAmmo}`;
         
-        let slotsDisplay = me.loadout.map((w, idx) => `Slot ${idx + 1}: ${w.toUpperCase()} ${idx === me.activeWeaponIndex ? '◀' : ''}`).join('\n');
+        let slotsDisplay = me.loadout.map((wId, idx) => {
+            let foundW = WEAPONS_CATALOG.find(w => w.id === wId);
+            let wTitle = foundW ? foundW.title : 'Empty slot';
+            return `Slot ${idx + 1}: ${wTitle.toUpperCase()} ${idx === me.activeWeaponIndex ? '◀' : ''}`;
+        }).join('\n');
         document.getElementById('wep-slots-rack').innerText = slotsDisplay;
 
         let now = Date.now();
         ['1','2','3'].forEach((num, idx) => {
             let readyTime = me[`ability${idx+1}ReadyAt`] || 0;
             let node = document.getElementById(`cd-${num}-status`);
+            let abId = me.abilities[idx];
+            let abObj = ABILITIES_CATALOG.find(a => a.id === abId);
+            let abTitle = abObj ? abObj.title : 'EMPTY';
+
             if (now < readyTime) {
                 node.innerText = `RECHARGING (${Math.ceil((readyTime - now)/1000)}S)`; node.className = "cd-wait";
             } else {
-                node.innerText = `READY [${(me.abilities[idx] || 'NONE').toUpperCase()}]`; node.className = "cd-ready";
+                node.innerText = `READY [${abTitle.toUpperCase()}]`; node.className = "cd-ready";
             }
         });
 
         const vig = document.getElementById('low-hp-vignette');
-        if (me.hp < 30 && me.hp > 0) { vig.className = 'pulsing-vignette'; } else { vig.className = ''; }
+        if (me.hp < 30 && me.hp > 0) { vig.style.boxShadow = 'inset 0 0 60px rgba(239,68,68,0.5)'; } else { vig.style.boxShadow = 'none'; }
 
         if (!hasSetInitialPos) {
             predictedPos.x = me.x; predictedPos.y = me.y;
@@ -440,13 +509,8 @@ function paintLoop() {
         requestAnimationFrame(paintLoop); return;
     }
 
-    let shakeX = 0, shakeY = 0;
-    if (screenShakeTimer > 0) {
-        shakeX = (Math.random() - 0.5) * 12; shakeY = (Math.random() - 0.5) * 12; screenShakeTimer -= 1/60;
-    }
-
     camera.x += (predictedPos.x - camera.x) * 0.15; camera.y += (predictedPos.y - camera.y) * 0.15;
-    let oX = canvas.width / 2 - camera.x + shakeX; let oY = canvas.height / 2 - camera.y + shakeY;
+    let oX = canvas.width / 2 - camera.x; let oY = canvas.height / 2 - camera.y;
 
     ctx.fillStyle = '#11121c'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#1e2030'; ctx.fillRect(oX, oY, MAP_SIZE, MAP_SIZE);
@@ -462,13 +526,6 @@ function paintLoop() {
         }
     }
 
-    if (serverGameState.items) {
-        serverGameState.items.forEach(it => {
-            ctx.fillStyle = it.type === 'armor' ? '#38bdf8' : '#22c55e';
-            ctx.fillRect(it.x - 8 + oX, it.y - 8 + oY, 16, 16);
-        });
-    }
-
     if (serverGameState.bullets) {
         serverGameState.bullets.forEach(b => {
             ctx.fillStyle = b.color || '#fbbf24'; ctx.beginPath(); ctx.arc(b.x + oX, b.y + oY, b.radius, 0, Math.PI * 2); ctx.fill();
@@ -482,17 +539,17 @@ function paintLoop() {
             ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             ctx.rotate(d.angle); ctx.fillStyle = '#ffffff'; ctx.fillRect(6, -2.5, 14, 5);
             ctx.restore();
-            ctx.fillStyle = '#00f0ff'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+            ctx.fillStyle = '#00f0ff'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
             ctx.fillText(`DECOY CLONE`, d.x + oX, d.y + oY - 22);
         });
     }
 
     Object.values(serverGameState.players).forEach(p => {
         if (p.hp <= 0) return;
-        // Hide player if they are in invisibility mode, unless it's our own model (rendered partially transparent)
+        // Apply full invisibility opacity rules unless rendering our own self layout model frame
         if (p.invisibleActive) {
             if (p.id !== myId) return;
-            ctx.globalAlpha = 0.35;
+            ctx.globalAlpha = 0.30;
         }
 
         ctx.save();
