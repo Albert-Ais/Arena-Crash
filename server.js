@@ -6,18 +6,28 @@ const path = require('path');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const MAP_SIZE = 2000; const GRID_SIZE = 40; const BLOCKS_COUNT = MAP_SIZE / GRID_SIZE;
+const MAP_SIZE = 2000; 
+const GRID_SIZE = 40; 
+const BLOCKS_COUNT = MAP_SIZE / GRID_SIZE;
 
+// Initialize layout matrix with outer perimeter wall rings
 let currentGrid = Array(BLOCKS_COUNT).fill(null).map(() => Array(BLOCKS_COUNT).fill(0));
 for (let i = 0; i < BLOCKS_COUNT; i++) {
-    currentGrid[i][0] = 1; currentGrid[i][BLOCKS_COUNT - 1] = 1;
-    currentGrid[0][i] = 1; currentGrid[BLOCKS_COUNT - 1][i] = 1;
+    currentGrid[i][0] = 1; 
+    currentGrid[i][BLOCKS_COUNT - 1] = 1;
+    currentGrid[0][i] = 1; 
+    currentGrid[BLOCKS_COUNT - 1][i] = 1;
 }
+
+// Procedural obstacle generation loop
 for (let k = 0; k < 25; k++) {
     let wx = Math.floor(Math.random() * (BLOCKS_COUNT - 8)) + 4;
     let wy = Math.floor(Math.random() * (BLOCKS_COUNT - 8)) + 4;
     let horiz = Math.random() > 0.5;
-    for (let l = 0; l < 5; l++) { if (horiz) currentGrid[wx + l][wy] = 1; else currentGrid[wx][wy + l] = 1; }
+    for (let l = 0; l < 5; l++) { 
+        if (horiz) currentGrid[wx + l][wy] = 1; 
+        else currentGrid[wx][wy + l] = 1; 
+    }
 }
 
 let gameState = { 
@@ -38,8 +48,11 @@ function checkServerWallCollision(x, y, radius) {
     for (let gx = startX; gx <= endX; gx++) {
         for (let gy = startY; gy <= endY; gy++) {
             if (gameState.mapGrid[gx] && gameState.mapGrid[gx][gy] === 1) {
-                let wX = gx * GRID_SIZE; let wY = gy * GRID_SIZE;
-                if (x + radius > wX && x - radius < wX + GRID_SIZE && y + radius > wY && y - radius < wY + GRID_SIZE) return true;
+                let wX = gx * GRID_SIZE; 
+                let wY = gy * GRID_SIZE;
+                if (x + radius > wX && x - radius < wX + GRID_SIZE && y + radius > wY && y - radius < wY + GRID_SIZE) {
+                    return true;
+                }
             }
         }
     }
@@ -58,7 +71,9 @@ function activateMatchTimerCountdown() {
 }
 
 function triggerRoundIntermissionPhase() {
-    gameState.state = 'intermission'; intermissionResponses = {}; io.emit('roundIntermissionScreen');
+    gameState.state = 'intermission'; 
+    intermissionResponses = {}; 
+    io.emit('roundIntermissionScreen');
 }
 
 function processRestartMatchVerification() {
@@ -66,14 +81,24 @@ function processRestartMatchVerification() {
     let readyCount = Object.keys(intermissionResponses).length;
     
     if (readyCount >= activePlayerIds.length && activePlayerIds.length > 0) {
-        gameState.bullets = []; gameState.decoys = []; gameState.fields = [];
-        gameState.matchTimer = 180; gameState.state = 'playing';
+        gameState.bullets = []; 
+        gameState.decoys = []; 
+        gameState.fields = [];
+        gameState.matchTimer = 180; 
+        gameState.state = 'playing';
 
         activePlayerIds.forEach(id => {
             let p = gameState.players[id];
-            p.x = 200 + Math.random() * 1600; p.y = 200 + Math.random() * 1600;
-            p.hp = 100; p.overshield = 50; p.invisibleActive = false; p.controllingDecoyId = null;
-            p.isReloading = false; p.ammo = p.maxAmmo; p.activeSpeedBuff = false; p.abilitySilencedUntil = 0;
+            p.x = 200 + Math.random() * 1600; 
+            p.y = 200 + Math.random() * 1600;
+            p.hp = 100; 
+            p.overshield = 50; 
+            p.invisibleActive = false; 
+            p.controllingDecoyId = null;
+            p.isReloading = false; 
+            p.ammo = p.maxAmmo; 
+            p.activeSpeedBuff = false; 
+            p.abilitySilencedUntil = 0;
         });
 
         activateMatchTimerCountdown();
@@ -111,14 +136,20 @@ io.on('connection', (socket) => {
     });
 
     socket.on('submitIntermissionKeepLoadout', () => {
-        if (gameState.players[socket.id]) { intermissionResponses[socket.id] = true; processRestartMatchVerification(); }
+        if (gameState.players[socket.id]) { 
+            intermissionResponses[socket.id] = true; 
+            processRestartMatchVerification(); 
+        }
     });
 
     socket.on('submitIntermissionLoadoutChange', (data) => {
         let p = gameState.players[socket.id];
         if (p) {
-            p.loadout = data.loadout; p.abilities = data.abilities; p.activeWeaponIndex = 0;
-            intermissionResponses[socket.id] = true; processRestartMatchVerification();
+            p.loadout = data.loadout; 
+            p.abilities = data.abilities; 
+            p.activeWeaponIndex = 0;
+            intermissionResponses[socket.id] = true; 
+            processRestartMatchVerification();
         }
     });
 
@@ -151,39 +182,228 @@ io.on('connection', (socket) => {
         p.ammo--;
         let currentWepId = p.loadout[p.activeWeaponIndex];
         
-        let bRadius = 4, bSpeed = 750, bDmg = 18, bColor = '#fbbf24', bLife = 1.5;
-        let bBounce = 0, bPassWalls = false, typeTag = "NORMAL";
+        let bRadius = 4; 
+        let bSpeed = 750; 
+        let bDmg = 18; 
+        let bColor = '#fbbf24'; 
+        let bLife = 1.5;
+        let bBounce = 0; 
+        let bPassWalls = false; 
+        let typeTag = "NORMAL";
 
-        // BEHAVIORAL WEAPON DISPATCH INDICES (Mapping descriptions exactly)
-        if (currentWepId === "wep_1") { bColor = "#a855f7"; typeTag = "LIGHTNING"; bDmg = 15; }
-        else if (currentWepId === "wep_2") { bColor = "#38bdf8"; typeTag = "PRISM"; }
-        else if (currentWepId === "wep_3") { bRadius = 2; bSpeed = 1500; bColor = "#00ffff"; typeTag = "PIERCE"; bDmg = 12; }
-        else if (currentWepId === "wep_4") { bColor = "#ec4899"; typeTag = "PULSE"; }
-        else if (currentWepId === "wep_6") { bBounce = 3; bColor = "#fb923c"; typeTag = "MIRROR"; }
-        else if (currentWepId === "wep_7") { bBounce = 8; bColor = "#facc15"; }
-        else if (currentWepId === "wep_11") { bSpeed = 250; bColor = "#b91c1c"; typeTag = "MINE"; bLife = 8.0; }
-        else if (currentWepId === "wep_12") { bRadius = 10; bSpeed = 400; bColor = "#ef4444"; typeTag = "FLAME"; bLife = 0.6; }
-        else if (currentWepId === "wep_13") { bColor = "#38bdf8"; typeTag = "CRYO"; }
-        else if (currentWepId === "wep_19") { bColor = "#10b981"; typeTag = "ANCHOR"; }
-        else if (currentWepId === "wep_22") { bColor = "#a855f7"; typeTag = "SWAP"; }
-        else if (currentWepId === "wep_27") { bColor = "#f59e0b"; typeTag = "EMP_WPN"; }
-        else if (currentWepId === "wep_30") { bColor = "#6366f1"; typeTag = "SILENCE_WPN"; }
-        else if (currentWepId === "wep_31") { bRadius = 5; bSpeed = 1600; bDmg = 40; bColor = "#ef4444"; }
-        else if (currentWepId === "wep_35") { bDmg = (p.hp < 100) ? 25 : 18; bColor = "#e11d48"; typeTag = "EXECUTION"; }
-        else if (currentWepId === "wep_41") { p.hp = Math.max(5, p.hp - 10); bRadius = 7; bDmg = 45; bColor = "#991b1b"; }
-        else if (currentWepId === "wep_45") { bDmg = 55; bColor = "#ffffff"; p.overshield = 0; } // Glass Cannon penalty
-        else if (currentWepId === "wep_46") { bRadius = 18; bSpeed = 220; bDmg = 5; bColor = "#6d28d9"; bLife = 3.0; typeTag = "BLACK_HOLE"; }
-        else if (currentWepId === "wep_48") { bColor = "#4c1d95"; bPassWalls = true; }
-
-        let activeFireSource = { x: p.x, y: p.y, angle: p.angle };
+        let fireSource = { x: p.x, y: p.y, angle: p.angle };
         if (p.controllingDecoyId) {
             let dObj = gameState.decoys.find(d => d.id === p.controllingDecoyId);
-            if (dObj) { activeFireSource.x = dObj.x; activeFireSource.y = dObj.y; activeFireSource.angle = dObj.angle; }
+            if (dObj) { fireSource.x = dObj.x; fireSource.y = dObj.y; fireSource.angle = dObj.angle; }
+        }
+
+        // ==========================================
+        // DYNAMIC BEHAVIOR MATRIX FOR ALL 50 WEAPONS
+        // ==========================================
+        switch(currentWepId) {
+            // --- 1. ENERGY WEAPONS ---
+            case "wep_1": // Chain Lightning Cannon
+                bColor = "#a855f7"; typeTag = "CHAIN_LIGHTNING"; bDmg = 14;
+                break;
+            case "wep_2": // Prism Rifle (Splits mid-air)
+                bColor = "#38bdf8"; typeTag = "PRISM_SPLIT"; bLife = 0.5;
+                break;
+            case "wep_3": // Photon Spear (Piercing)
+                bRadius = 2; bSpeed = 1600; bColor = "#00ffff"; typeTag = "PHOTON_PIERCE"; bDmg = 15; bPassWalls = true;
+                break;
+            case "wep_4": // Pulse Blaster
+                bRadius = 6; bSpeed = 500; bColor = "#ec4899"; typeTag = "PULSE_RING"; bLife = 0.8;
+                break;
+            case "wep_5": // Energy Shredder
+                bRadius = 5; bSpeed = 950; bDmg = 26; bColor = "#f43f5e"; typeTag = "ENERGY_SHREDDER";
+                break;
+
+            // --- 2. RICOCHET WEAPONS ---
+            case "wep_6": // Mirror Cannon (Smart Bounce)
+                bBounce = 3; bColor = "#fb923c"; typeTag = "SMART_BOUNCE";
+                break;
+            case "wep_7": // Pinball Launcher
+                bBounce = 8; bSpeed = 900; bColor = "#facc15"; typeTag = "PINBALL";
+                break;
+            case "wep_8": // Reflector Gun (Stronger per bounce)
+                bBounce = 4; bColor = "#a3e635"; typeTag = "GROWING_BOUNCE"; bDmg = 12;
+                break;
+            case "wep_9": // Corner Sniper
+                bBounce = 1; bSpeed = 1500; bRadius = 3; bDmg = 45; bColor = "#34d399"; typeTag = "CORNER_BANK";
+                break;
+            case "wep_10": // Chaos Ricochet
+                bBounce = 5; bColor = "#f472b6"; typeTag = "CHAOS_BOUNCE";
+                break;
+
+            // --- 3. AREA CONTROL WEAPONS ---
+            case "wep_11": // Spike Mine Launcher
+                bSpeed = 150; bColor = "#b91c1c"; typeTag = "SPIKE_MINE"; bLife = 12.0; bRadius = 8;
+                break;
+            case "wep_12": // Flame Thrower
+                bRadius = 14; bSpeed = 400; bColor = "#ef4444"; typeTag = "FLAME_BURST"; bLife = 0.4; bDmg = 5;
+                break;
+            case "wep_13": // Cryo Bomb
+                bSpeed = 450; bColor = "#60a5fa"; typeTag = "CRYO_BOMB"; bLife = 1.0;
+                break;
+            case "wep_14": // Tesla Tower Gun
+                bSpeed = 250; bColor = "#c084fc"; typeTag = "TESLA_DEPLOY"; bLife = 1.5;
+                break;
+            case "wep_15": // Acid Sprayer
+                bRadius = 10; bSpeed = 320; bColor = "#22c55e"; typeTag = "ACID_SLUDGE"; bLife = 0.75; bDmg = 6;
+                break;
+
+            // --- 4. MOVEMENT WEAPONS ---
+            case "wep_16": // Boomerang Blade
+                bColor = "#2dd4bf"; typeTag = "BOOMERANG"; bLife = 1.6; bSpeed = 550;
+                break;
+            case "wep_17": // Orbit Cannon
+                bColor = "#e2e8f0"; typeTag = "ORBITAL_NODE"; bLife = 5.0;
+                break;
+            case "wep_18": // Momentum Rifle
+                let isMoving = p.lastInputState.w || p.lastInputState.s || p.lastInputState.a || p.lastInputState.d;
+                bDmg = isMoving ? 35 : 15;
+                bColor = "#fbbf24"; typeTag = "MOMENTUM_SHOT";
+                break;
+            case "wep_19": // Anchor Cannon
+                bColor = "#0d9488"; typeTag = "ANCHOR_ROOT"; bSpeed = 700; bDmg = 10;
+                break;
+            case "wep_20": // Dash Shotgun
+                bRadius = 4; bDmg = 12; bColor = "#f59e0b"; typeTag = "DASH_SHOT";
+                break;
+
+            // --- 5. WEIRD WEAPONS ---
+            case "wep_21": // Portal Gun
+                bColor = "#3b82f6"; typeTag = "PORTAL_SHOT"; bSpeed = 900;
+                break;
+            case "wep_22": // Swap Rifle
+                bColor = "#8b5cf6"; typeTag = "SWAP_HIT"; bSpeed = 1200;
+                break;
+            case "wep_23": // Time Shot
+                bColor = "#6b7280"; typeTag = "TIME_STALL"; bLife = 3.5;
+                break;
+            case "wep_24": // Reverse Gun
+                bColor = "#ec4899"; typeTag = "REVERSE_PULL"; bSpeed = 600;
+                break;
+            case "wep_25": // Clone Cannon
+                bColor = "#14b8a6"; typeTag = "DUPLICATING_SHOT"; bLife = 0.7;
+                break;
+
+            // --- 6. CROWD CONTROL WEAPONS ---
+            case "wep_26": // Magnet Launcher
+                bRadius = 7; bColor = "#64748b"; typeTag = "MAGNET_CORE"; bSpeed = 400;
+                break;
+            case "wep_27": // EMP Rifle
+                bColor = "#f59e0b"; typeTag = "EMP_SILENCE"; bSpeed = 950;
+                break;
+            case "wep_28": // Shock Net
+                bRadius = 9; bColor = "#06b6d4"; typeTag = "SHOCK_NET_TRAP"; bSpeed = 550;
+                break;
+            case "wep_29": // Gravity Cage
+                bSpeed = 500; bColor = "#4338ca"; typeTag = "GRAVITY_CAGE_LOB"; bLife = 1.4;
+                break;
+            case "wep_30": // Silence Beam
+                bColor = "#4f46e5"; typeTag = "SILENCE_BEAM_HIT"; bSpeed = 1300;
+                break;
+
+            // --- 7. PRECISION WEAPONS ---
+            case "wep_31": // Burst Sniper
+                for(let step = 0; step < 3; step++) {
+                    setTimeout(() => {
+                        let innerP = gameState.players[p.id];
+                        if(!innerP || innerP.hp <= 0) return;
+                        gameState.bullets.push({
+                            x: innerP.x + Math.cos(innerP.angle)*22, y: innerP.y + Math.sin(innerP.angle)*22,
+                            vx: Math.cos(innerP.angle)*1600, vy: Math.sin(innerP.angle)*1600,
+                            radius: 3.5, ownerId: innerP.id, life: 1.0, dmg: 24, color: "#ef4444", type: "NORMAL"
+                        });
+                    }, step * 100);
+                }
+                return;
+            case "wep_32": // Charge Rifle
+                bRadius = 5; bSpeed = 1500; bDmg = 40; bColor = "#f97316"; typeTag = "CHARGE_LINE";
+                break;
+            case "wep_33": // Rail Burst
+                for (let i = -2; i <= 2; i++) {
+                    let devAng = fireSource.angle + (i * 0.07);
+                    gameState.bullets.push({
+                        x: fireSource.x + Math.cos(devAng)*22, y: fireSource.y + Math.sin(devAng)*22,
+                        vx: Math.cos(devAng)*1400, vy: Math.sin(devAng)*1400,
+                        radius: 2, ownerId: p.id, life: 0.9, dmg: 7, color: "#10b981", type: "NORMAL"
+                    });
+                }
+                return;
+            case "wep_34": // Hunter Rifle
+                bColor = "#a855f7"; typeTag = "HUNTER_MARK"; bDmg = 20;
+                break;
+            case "wep_35": // Execution Revolver
+                bColor = "#e11d48"; typeTag = "EXECUTION_SHOT"; bDmg = 16;
+                break;
+
+            // --- 8. SUMMON WEAPONS ---
+            case "wep_36": // Drone Launcher
+                bColor = "#38bdf8"; typeTag = "SUMMON_DRONE_PROJECTILE"; bSpeed = 500;
+                break;
+            case "wep_37": // Spider Bot Cannon
+                bSpeed = 350; bColor = "#f59e0b"; typeTag = "SPIDER_BOT_POD"; bLife = 2.0;
+                break;
+            case "wep_38": // Nano Swarm
+                for (let i = 0; i < 6; i++) {
+                    let spread = fireSource.angle + (Math.random() * 0.5 - 0.25);
+                    gameState.bullets.push({
+                        x: fireSource.x, y: fireSource.y, vx: Math.cos(spread)*450, vy: Math.sin(spread)*450,
+                        radius: 2, ownerId: p.id, life: 2.5, dmg: 4, color: "#a78bfa", type: "TRACKING_NANO"
+                    });
+                }
+                return;
+            case "wep_39": // Orbital Beacon
+                bSpeed = 800; bColor = "#f43f5e"; typeTag = "ORBITAL_BEACON_DROP"; bLife = 0.8;
+                break;
+            case "wep_40": // Guardian Core
+                bSpeed = 250; bColor = "#34d399"; typeTag = "GUARDIAN_CORE_DEPLOY"; bLife = 1.2;
+                break;
+
+            // --- 9. HIGH-RISK WEAPONS ---
+            case "wep_41": // Blood Cannon
+                p.hp = Math.max(1, p.hp - 12);
+                bRadius = 7; bDmg = 48; bColor = "#991b1b"; typeTag = "BLOOD_EXPLOSIVE";
+                break;
+            case "wep_42": // Overload Rifle
+                bColor = "#ea580c"; bDmg = 34; typeTag = "OVERLOAD_BURN";
+                break;
+            case "wep_43": // Berserker Launcher
+                let hpRatio = (100 - p.hp) / 100;
+                bDmg = 15 + Math.floor(hpRatio * 40);
+                bColor = "#dc2626"; bRadius = 5.5; typeTag = "BERSERK_BLAST";
+                break;
+            case "wep_44": // Unstable Reactor
+                bRadius = 9; bDmg = 55; bColor = "#facc15"; typeTag = "UNSTABLE_EXPLOSION";
+                if (Math.random() < 0.10) { p.hp = Math.max(1, p.hp - 20); }
+                break;
+            case "wep_45": // Glass Cannon
+                bDmg = 60; bColor = "#ffffff"; p.overshield = 0; typeTag = "GLASS_SLUG";
+                break;
+
+            // --- 10. BOSS-LEVEL WEAPONS ---
+            case "wep_46": // Black Hole Cannon
+                bRadius = 16; bSpeed = 200; bDmg = 5; bColor = "#6d28d9"; bLife = 4.0; typeTag = "BLACK_HOLE";
+                break;
+            case "wep_47": // Meteor Launcher
+                bColor = "#ef4444"; typeTag = "METEOR_STRIKE"; bSpeed = 400; bLife = 1.5;
+                break;
+            case "wep_48": // Void Beam
+                bColor = "#4c1d95"; bPassWalls = true; bDmg = 22; bSpeed = 1100; typeTag = "VOID_WALL_PIERCE";
+                break;
+            case "wep_49": // Apocalypse Cannon
+                bRadius = 15; bSpeed = 180; bDmg = 35; bColor = "#ea580c"; bLife = 2.8; typeTag = "APOCALYPSE_PARENT";
+                break;
+            case "wep_50": // Reality Breaker
+                bRadius = 6; bColor = "#06b6d4"; typeTag = "REALITY_DISTORT"; bSpeed = 800;
+                break;
         }
 
         let bulletModel = { 
-            x: activeFireSource.x + Math.cos(activeFireSource.angle)*22, y: activeFireSource.y + Math.sin(activeFireSource.angle)*22, 
-            vx: Math.cos(activeFireSource.angle)*bSpeed, vy: Math.sin(activeFireSource.angle)*bSpeed, 
+            x: fireSource.x + Math.cos(fireSource.angle)*22, y: fireSource.y + Math.sin(fireSource.angle)*22, 
+            vx: Math.cos(fireSource.angle)*bSpeed, vy: Math.sin(fireSource.angle)*bSpeed, 
             radius: bRadius, ownerId: p.id, life: bLife, dmg: bDmg, color: bColor,
             bounce: bBounce, passWalls: bPassWalls, type: typeTag
         };
@@ -191,17 +411,21 @@ io.on('connection', (socket) => {
     });
 
     socket.on('useAbility', (slotIdx) => {
-        let p = gameState.players[socket.id]; if (!p || p.hp <= 0 || gameState.state !== 'playing') return;
+        let p = gameState.players[socket.id]; 
+        if (!p || p.hp <= 0 || gameState.state !== 'playing') return;
         if (Date.now() < p.abilitySilencedUntil) return;
 
-        let name = p.abilities[slotIdx]; let now = Date.now(); let readyProp = `ability${slotIdx + 1}ReadyAt`;
-        if (now < p[readyProp]) return; p[readyProp] = now + 14000;
+        let name = p.abilities[slotIdx]; 
+        let now = Date.now(); 
+        let readyProp = `ability${slotIdx + 1}ReadyAt`;
+        if (now < p[readyProp]) return; 
+        p[readyProp] = now + 14000;
 
-        // SPECIFIC FUNCTIONAL ABILITY ENGINE RESOLUTIONS
         if (name === 'abil_1') { 
             p.hp = Math.min(100, p.hp + 40); 
         } else if (name === 'abil_6') { 
-            p.activeSpeedBuff = true; setTimeout(() => { let pl = gameState.players[socket.id]; if (pl) pl.activeSpeedBuff = false; }, 4000);
+            p.activeSpeedBuff = true; 
+            setTimeout(() => { let pl = gameState.players[socket.id]; if (pl) pl.activeSpeedBuff = false; }, 4000);
         } else if (name === 'abil_16') { 
             p.overshield = Math.min(100, p.overshield + 50);
         } else if (name === 'abil_37') { 
@@ -209,15 +433,16 @@ io.on('connection', (socket) => {
                 if (opp.id !== p.id && Math.hypot(opp.x - p.x, opp.y - p.y) < 250) opp.abilitySilencedUntil = Date.now() + 4000;
             });
         } else if (name === 'abil_45') { 
-            // CONTROLLED DECOY MATRIX LOGIC: Spawns sub-entity, routes physics loops, triggers invisible states
             let cloneId = 'decoy_' + socket.id + '_' + Date.now();
-            p.invisibleActive = true; p.controllingDecoyId = cloneId;
+            p.invisibleActive = true; 
+            p.controllingDecoyId = cloneId;
 
             gameState.decoys.push({ id: cloneId, ownerId: p.id, x: p.x, y: p.y, angle: p.angle, life: 10.0 });
             setTimeout(() => {
                 let targetPlayer = gameState.players[socket.id];
                 if (targetPlayer && targetPlayer.controllingDecoyId === cloneId) {
-                    targetPlayer.invisibleActive = false; targetPlayer.controllingDecoyId = null;
+                    targetPlayer.invisibleActive = false; 
+                    targetPlayer.controllingDecoyId = null;
                     gameState.decoys = gameState.decoys.filter(d => d.id !== cloneId);
                 }
             }, 10000);
@@ -229,18 +454,23 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        delete gameState.players[socket.id]; delete intermissionResponses[socket.id];
+        delete gameState.players[socket.id]; 
+        delete intermissionResponses[socket.id];
         matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
         if (gameState.state === 'intermission') processRestartMatchVerification();
     });
 });
 
 setInterval(() => {
-    let dt = 1 / 60; if (gameState.state !== 'playing') return;
+    let dt = 1 / 60; 
+    if (gameState.state !== 'playing') return;
 
+    // Environmental Persistent Fields Updates
     for (let j = gameState.fields.length - 1; j >= 0; j--) {
-        let f = gameState.fields[j]; f.life -= dt;
+        let f = gameState.fields[j]; 
+        f.life -= dt;
         if (f.life <= 0) { gameState.fields.splice(j, 1); continue; }
+        
         if (f.type === 'TOXIC') {
             Object.values(gameState.players).forEach(p => {
                 if (p.hp > 0 && Math.hypot(p.x - f.x, p.y - f.y) < f.radius) {
@@ -248,11 +478,28 @@ setInterval(() => {
                 }
             });
         }
+        if (f.type === 'FROST') {
+            Object.values(gameState.players).forEach(p => {
+                if (p.hp > 0 && Math.hypot(p.x - f.x, p.y - f.y) < f.radius) {
+                    p.x -= (p.vx || 0) * 0.5 * dt; 
+                    p.y -= (p.vy || 0) * 0.5 * dt;
+                }
+            });
+        }
+        if (f.type === 'PRISON') {
+            Object.values(gameState.players).forEach(p => {
+                if (p.hp > 0 && Math.hypot(p.x - f.x, p.y - f.y) < f.radius) {
+                    p.x = f.x; 
+                    p.y = f.y;
+                }
+            });
+        }
     }
 
+    // Positions & Actions Translation Tick Loops
     Object.values(gameState.players).forEach(p => {
         if (p.hp <= 0) return;
-        let input = p.lastInputState;
+        let input = p.lastInputState; 
         let dx = 0, dy = 0;
         if (input.w) dy -= 1; if (input.s) dy += 1;
         if (input.a) dx -= 1; if (input.d) dx += 1;
@@ -260,61 +507,208 @@ setInterval(() => {
 
         let speed = p.activeSpeedBuff ? 440 : 252;
 
-        // CONTROL REDIRECTION: If clone configuration flag exists, route controls to the decoy instead
         if (p.controllingDecoyId) {
             let activeDecoy = gameState.decoys.find(d => d.id === p.controllingDecoyId);
             if (activeDecoy) {
-                let nX = activeDecoy.x + (dx * speed * dt); let nY = activeDecoy.y + (dy * speed * dt);
+                let nX = activeDecoy.x + (dx * speed * dt); 
+                let nY = activeDecoy.y + (dy * speed * dt);
                 if (!checkServerWallCollision(nX, activeDecoy.y, 14)) activeDecoy.x = nX;
                 if (!checkServerWallCollision(activeDecoy.x, nY, 14)) activeDecoy.y = nY;
                 activeDecoy.angle = input.angle || 0;
             }
         } else {
-            let nextX = p.x + (dx * speed * dt); let nextY = p.y + (dy * speed * dt);
+            let nextX = p.x + (dx * speed * dt); 
+            let nextY = p.y + (dy * speed * dt);
             if (!checkServerWallCollision(nextX, p.y, 16)) p.x = nextX;
             if (!checkServerWallCollision(p.x, nextY, 16)) p.y = nextY;
             p.angle = input.angle || 0;
         }
     });
 
+    // Projectile Flight Path Engine Updates
     for (let i = gameState.bullets.length - 1; i >= 0; i--) {
-        let b = gameState.bullets[i]; b.life -= dt;
-        b.x += b.vx * dt; b.y += b.vy * dt;
+        let b = gameState.bullets[i]; 
+        b.life -= dt;
 
-        if (b.life <= 0) { gameState.bullets.splice(i, 1); continue; }
-
-        if (!b.passWalls && checkServerWallCollision(b.x, b.y, b.radius)) {
-            if (b.bounce > 0) { b.bounce--; b.vx = -b.vx; b.vy = -b.vy; } 
-            else { gameState.bullets.splice(i, 1); continue; }
+        // Tracking Nano Swarms tracking configuration (wep_38)
+        if (b.type === "TRACKING_NANO") {
+            let closestOpp = null; let closeDist = 500;
+            Object.values(gameState.players).forEach(opp => {
+                if (opp.id !== b.ownerId && opp.hp > 0 && !opp.invisibleActive) {
+                    let d = Math.hypot(opp.x - b.x, opp.y - b.y);
+                    if (d < closeDist) { closeDist = d; closestOpp = opp; }
+                }
+            });
+            if (closestOpp) {
+                let ang = Math.atan2(closestOpp.y - b.y, closestOpp.x - b.x);
+                b.vx = Math.cos(ang) * 500; b.vy = Math.sin(ang) * 500;
+            }
         }
 
+        // Boomerang Blade translation handling (wep_16)
+        if (b.type === "BOOMERANG" && b.life < 0.8) {
+            let owner = gameState.players[b.ownerId];
+            if (owner) {
+                let returnAng = Math.atan2(owner.y - b.y, owner.x - b.x);
+                b.vx = Math.cos(returnAng) * 650; b.vy = Math.sin(returnAng) * 650;
+            }
+        }
+
+        // Orbit Cannon processing mechanics (wep_17)
+        if (b.type === "ORBITAL_NODE") {
+            let owner = gameState.players[b.ownerId];
+            if (owner) {
+                let currentAge = 5.0 - b.life;
+                let radius = 90;
+                let orbitalAngle = (currentAge * 4) + (i * 0.5); 
+                b.x = owner.x + Math.cos(orbitalAngle) * radius;
+                b.y = owner.y + Math.sin(orbitalAngle) * radius;
+                b.vx = 0; b.vy = 0;
+            }
+        } else {
+            b.x += b.vx * dt;
+            b.y += b.vy * dt;
+        }
+
+        // Mid-flight structural stalling loops (wep_23)
+        if (b.type === "TIME_STALL" && b.life < 2.8 && b.life > 1.8) {
+            b.x -= b.vx * dt; 
+            b.y -= b.vy * dt;
+        }
+
+        // Projectile Lifespan Expiration Triggers
+        if (b.life <= 0) {
+            if (b.type === "PRISM_SPLIT") {
+                let baseAngle = Math.atan2(b.vy, b.vx);
+                for (let offset of [-0.3, 0, 0.3]) {
+                    gameState.bullets.push({
+                        x: b.x, y: b.y, vx: Math.cos(baseAngle + offset)*850, vy: Math.sin(baseAngle + offset)*850,
+                        radius: 3, ownerId: b.ownerId, life: 0.8, dmg: 11, color: "#38bdf8", type: "NORMAL"
+                    });
+                }
+            }
+            if (b.type === "APOCALYPSE_PARENT") {
+                for (let deg = 0; deg < Math.PI * 2; deg += Math.PI / 3) {
+                    gameState.bullets.push({
+                        x: b.x, y: b.y, vx: Math.cos(deg)*500, vy: Math.sin(deg)*500,
+                        radius: 4.5, ownerId: b.ownerId, life: 1.0, dmg: 18, color: "#ef4444", type: "NORMAL"
+                    });
+                }
+            }
+            if (b.type === "ACID_SLUDGE") {
+                gameState.fields.push({
+                    x: b.x, y: b.y, radius: 75, color: 'rgba(34, 197, 94, 0.35)', type: 'TOXIC', ownerId: b.ownerId, life: 5.0
+                });
+            }
+            if (b.type === "FLAME_BURST") {
+                gameState.fields.push({
+                    x: b.x, y: b.y, radius: 45, color: 'rgba(239, 68, 68, 0.3)', type: 'TOXIC', ownerId: b.ownerId, life: 2.0
+                });
+            }
+            if (b.type === "CRYO_BOMB") {
+                gameState.fields.push({
+                    x: b.x, y: b.y, radius: 90, color: 'rgba(96, 165, 250, 0.3)', type: 'FROST', ownerId: b.ownerId, life: 4.0
+                });
+            }
+            if (b.type === "GRAVITY_CAGE_LOB") {
+                gameState.fields.push({
+                    x: b.x, y: b.y, radius: 80, color: 'rgba(67, 56, 202, 0.35)', type: 'PRISON', ownerId: b.ownerId, life: 3.5
+                });
+            }
+
+            gameState.bullets.splice(i, 1);
+            continue;
+        }
+
+        // Geometric Wall reflections
+        if (!b.passWalls && checkServerWallCollision(b.x, b.y, b.radius)) {
+            if (b.bounce > 0) {
+                b.bounce--;
+                if (b.type === "SMART_BOUNCE") {
+                    let targetOpp = null; let targetDist = 600;
+                    Object.values(gameState.players).forEach(o => {
+                        if (o.id !== b.ownerId && o.hp > 0 && !o.invisibleActive) {
+                            let d = Math.hypot(o.x - b.x, o.y - b.y);
+                            if (d < targetDist) { targetDist = d; targetOpp = o; }
+                        }
+                    });
+                    if (targetOpp) {
+                        let trackingAng = Math.atan2(targetOpp.y - b.y, targetOpp.x - b.x);
+                        b.vx = Math.cos(trackingAng) * 850; b.vy = Math.sin(trackingAng) * 850;
+                    } else { b.vx = -b.vx; b.vy = -b.vy; }
+                } else if (b.type === "CHAOS_BOUNCE") {
+                    let randAng = Math.random() * Math.PI * 2;
+                    let speedMag = Math.hypot(b.vx, b.vy);
+                    b.vx = Math.cos(randAng) * speedMag; b.vy = Math.sin(randAng) * speedMag;
+                } else {
+                    b.vx = -b.vx; b.vy = -b.vy;
+                }
+                if (b.type === "GROWING_BOUNCE") b.dmg = Math.floor(b.dmg * 1.5);
+            } else {
+                gameState.bullets.splice(i, 1);
+                continue;
+            }
+        }
+
+        // Physics Gravitational Influences Loop
         if (b.type === "BLACK_HOLE") {
-            Object.values(gameState.players).forEach(p => {
-                if (p.hp > 0 && p.id !== b.ownerId) {
-                    let dist = Math.hypot(p.x - b.x, p.y - b.y);
-                    if (dist < 180) {
-                        let pullAng = Math.atan2(b.y - p.y, b.x - p.x);
-                        p.x += Math.cos(pullAng) * 140 * dt; p.y += Math.sin(pullAng) * 140 * dt;
+            Object.values(gameState.players).forEach(opp => {
+                if (opp.id !== b.ownerId && opp.hp > 0) {
+                    let d = Math.hypot(opp.x - b.x, opp.y - b.y);
+                    if (d < 220) {
+                        let pullAng = Math.atan2(b.y - opp.y, b.x - opp.x);
+                        opp.x += Math.cos(pullAng) * 190 * dt; opp.y += Math.sin(pullAng) * 190 * dt;
+                    }
+                }
+            });
+        }
+        if (b.type === "REVERSE_PULL") {
+            Object.values(gameState.players).forEach(opp => {
+                if (opp.id !== b.ownerId && opp.hp > 0) {
+                    if (Math.hypot(opp.x - b.x, opp.y - b.y) < 150) {
+                        let pullAng = Math.atan2(b.y - opp.y, b.x - opp.x);
+                        opp.x += Math.cos(pullAng) * 120 * dt; opp.y += Math.sin(pullAng) * 120 * dt;
                     }
                 }
             });
         }
 
+        // Processing Hit Contacts
         Object.values(gameState.players).forEach(p => {
             if (p.hp > 0 && p.id !== b.ownerId && !p.invisibleActive && Math.hypot(p.x - b.x, p.y - b.y) < 22) {
-                let damageAmount = b.dmg;
-                if (b.type === "EXECUTION" && p.hp < 30) damageAmount *= 2;
+                let finalDmg = b.dmg;
 
-                if (p.overshield > 0) {
-                    p.overshield -= damageAmount; if (p.overshield < 0) p.overshield = 0;
-                } else {
-                    p.hp -= damageAmount;
+                if (b.type === "EXECUTION_SHOT" && p.hp < 30) finalDmg *= 2;
+                if (b.type === "HUNTER_MARK") p.activeSpeedBuff = false; 
+
+                if (b.type === "SWAP_HIT") {
+                    let shooter = gameState.players[b.ownerId];
+                    if (shooter) {
+                        let tx = p.x; let ty = p.y;
+                        p.x = shooter.x; p.y = shooter.y;
+                        shooter.x = tx; shooter.y = ty;
+                    }
                 }
 
-                if (b.type === "ANCHOR") { p.activeSpeedBuff = false; p.lastInputState = { w:false, a:false, s:false, d:false }; }
-                if (b.type === "SILENCE_WPN") { p.abilitySilencedUntil = Date.now() + 3000; }
+                if (b.type === "ANCHOR_ROOT") {
+                    p.lastInputState = { w: false, a: false, s: false, d: false, angle: p.angle };
+                }
+                if (b.type === "EMP_SILENCE" || b.type === "SILENCE_BEAM_HIT") {
+                    p.abilitySilencedUntil = Date.now() + 4000;
+                }
 
-                io.to(b.ownerId).emit('hitFeedback', { x: p.x, y: p.y, dmg: damageAmount });
+                if (p.overshield > 0) {
+                    p.overshield -= finalDmg;
+                    if (p.overshield < 0) { p.hp += p.overshield; p.overshield = 0; }
+                } else {
+                    p.hp -= finalDmg;
+                }
+                
+                io.to(b.ownerId).emit('hitFeedback', { x: p.x, y: p.y, dmg: finalDmg });
+                
+                if (b.type !== "PHOTON_PIERCE") {
+                    b.life = 0;
+                }
 
                 if (p.hp <= 0) {
                     let killer = gameState.players[b.ownerId];
@@ -328,7 +722,6 @@ setInterval(() => {
                         io.emit('playerRespawned', { id: p.id, x: p.x, y: p.y });
                     }, 3000);
                 }
-                b.life = 0;
             }
         });
     }
