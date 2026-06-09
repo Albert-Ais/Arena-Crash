@@ -142,23 +142,20 @@ function processRestartMatchVerification() {
 
 io.on('connection', (socket) => {
     socket.on('joinQueue', (data) => {
-        // Evaluate dynamic matchmaking properties based on user options selection
-        let chosenMode = data.gamemode || 'TDM'; // 'TDM', 'FFA', 'CTF', 'KOTH'
-        let chosenType = data.matchType || '1v1'; // '1v1', '2v2', '3v3', 'FFA'
+        let chosenMode = data.gamemode || 'TDM'; 
+        let chosenType = data.matchType || '1v1'; 
         
-        gameState.gamemode = chosenMode;
-        gameState.matchType = chosenType;
-
-        let needed = 2; // Default 1v1
+        // Enforce exact player counts needed
+        let needed = 2; 
         if (chosenType === '2v2') needed = 4;
         if (chosenType === '3v3') needed = 6;
-        if (chosenType === 'FFA') needed = 4; // FFA launches with 4 players
+        if (chosenType === 'FFA') needed = 4;
 
-        let assignedTeam = 'red';
+        let assignedTeam = 'solo';
         if (chosenType !== 'FFA') {
-            assignedTeam = matchmakingQueue.length % 2 === 0 ? 'red' : 'blue';
-        } else {
-            assignedTeam = 'solo';
+            // Count how many players are already in the queue for THIS specific match type
+            let existingInType = matchmakingQueue.filter(p => p.matchType === chosenType).length;
+            assignedTeam = existingInType % 2 === 0 ? 'red' : 'blue';
         }
 
         let pProfile = {
@@ -166,6 +163,7 @@ io.on('connection', (socket) => {
             x: assignedTeam === 'red' ? 200 + Math.random() * 100 : 1700 + Math.random() * 100, 
             y: 500 + Math.random() * 1000,
             hp: 100, overshield: 50, team: assignedTeam,
+            gamemode: chosenMode, matchType: chosenType, // Store intended settings on the player
             loadout: data.loadout || ["wep_1", "wep_12", "wep_15"], 
             abilities: data.abilities || ["abil_1", "abil_6"],
             activeWeaponIndex: 0, ammo: 30, maxAmmo: 30, isReloading: false,
@@ -177,21 +175,30 @@ io.on('connection', (socket) => {
         matchmakingQueue.push(pProfile);
         socket.emit('roomJoined', { map: gameState.mapGrid });
 
-        if (matchmakingQueue.length >= needed && gameState.state === 'lobby') {
+        // Filter the queue to see how many players are waiting for this EXACT match configuration
+        let validGroup = matchmakingQueue.filter(p => p.matchType === chosenType);
+
+        if (validGroup.length >= needed && gameState.state === 'lobby') {
             gameState.state = 'playing';
+            gameState.gamemode = chosenMode;
+            gameState.matchType = chosenType;
             gameState.scores = { red: 0, blue: 0 };
             gameState.ffaScores = {};
             
-            matchmakingQueue.forEach(p => { 
+            // Move only the players belonging to this match type out of the queue and into the game
+            validGroup.forEach(p => { 
                 gameState.players[p.id] = p; 
                 gameState.ffaScores[p.id] = 0;
+                // Remove from global matchmaking queue
+                matchmakingQueue = matchmakingQueue.filter(mq => mq.id !== p.id);
             });
-            matchmakingQueue = [];
+
             activateMatchTimerCountdown();
             io.emit('matchStarted', { map: gameState.mapGrid });
         } else {
-            let list = matchmakingQueue.map(p => ({ name: p.name, device: p.device }));
-            io.emit('lobbyUpdate', { count: matchmakingQueue.length, required: needed, users: list });
+            // Send back updates containing only players waiting for the same game type
+            let list = validGroup.map(p => ({ name: p.name, device: p.device }));
+            socket.emit('lobbyUpdate', { count: validGroup.length, required: needed, users: list });
         }
     });
 
@@ -522,7 +529,6 @@ setInterval(() => {
         if (b.type === "TRACKING_NANO") {
             let closestOpp = null; let closeDist = 500;
             Object.values(gameState.players).forEach(opp => {
-                // Free-For-All allows target lock onto anyone except the shooter
                 let targetValidation = gameState.gamemode === 'FFA' ? (opp.id !== b.ownerId) : (opp.id !== b.ownerId && opp.team !== gameState.players[b.ownerId].team);
                 if (targetValidation && opp.hp > 0 && !opp.invisibleActive) {
                     let d = Math.hypot(opp.x - b.x, opp.y - b.y);
